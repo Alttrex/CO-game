@@ -1,26 +1,5 @@
 .data
-    debugIntMessage: .asciz "%lu\n" # TEMP
-
-    screenWidth: .quad 800
-    screenHeight: .quad 600
-
-    GRAY:
-        .byte 130 # r
-        .byte 130 # g
-        .byte 130 # b
-        .byte 255 # a
-
-    RED:
-        .byte 100 # r
-        .byte 0 # g
-        .byte 0 # b
-        .byte 255 # a
-
-
-    windowTitle: .asciz "Typper"
-
-
-    word: .asciz "stupid"
+    .include "constants.s"
 
     
     displayTextBuffer: 
@@ -50,8 +29,7 @@ main:
         cmp  $1, %rax
         je   end
 
-        call processCharsPressed
-        call  isEnterDown
+        call processInput
 
         call BeginDrawing
             
@@ -85,7 +63,46 @@ end:
     movq  $0, %rdi
     call  exit
 
+# *************************************************************************************************************************
+# * Subroutine: void processInput()                                                                                       *
+# * Description: Processes all input related events. Should be called once during every iteration of main loop            *
+# * Parameters: -                                                                                                         *
+# *************************************************************************************************************************
+processInput:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
 
+    # process characters
+    call  processCharsPressed
+
+    # if enter is pressed, clear displayed string
+    movq $257, %rdi # 257 = enter key
+    call IsKeyDown
+    cmpb $0, %al   
+    je  enterNotPressed
+    
+        call clearDisplayBuffer
+    
+    enterNotPressed:    # if enter is not pressed, jumps here
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# *************************************************************************************************************************
+# * Subroutine: void processCharsPressed()                                                                                *
+# * Description: Processes all the chars pressed since last GetCharPressed call. Adds every char to displayStringBuffer   *
+# * Parameters: -                                                                                                         *
+# *************************************************************************************************************************
 processCharsPressed:
     # prologue
     pushq %rbp
@@ -113,7 +130,11 @@ processCharsPressed:
 
     ret
 
-# 1 parameter - char to display
+# *********************************************************************************
+# * Subroutine: void processCharsPressed(char toAdd)                              *
+# * Description: adds a char to the end of string stored in displayStringBuffer   *
+# * Parameters: toAdd - char that gets added to displayStringBuffer               *
+# *********************************************************************************
 addCharToDisplayBuffer:
     # prologue
     pushq %rbp
@@ -137,6 +158,11 @@ addCharToDisplayBuffer:
 
     ret
 
+# *******************************************
+# * Subroutine: void clearDisplayBuffer()   *
+# * Description: Clear displayBuffer        *
+# * Parameters: -                           *
+# ******************************************
 clearDisplayBuffer:
     # prologue
     pushq %rbp
@@ -154,31 +180,6 @@ clearDisplayBuffer:
 
     ret
 
-# check if enter is pressed
-isEnterDown:
-    # prologue
-    pushq %rbp
-    movq  %rsp, %rbp
-
-
-    movq $257, %rdi
-    call IsKeyDown
-    cmpb $0, %al
-    je  enterNotPressed
-    
-    movq $debugIntMessage, %rdi
-    movq $0, %rsi
-    movb %al, %sil
-    call printf
-    
-    call clearDisplayBuffer
-    
-    enterNotPressed:
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
 
 # TODO
 compareStrings:
