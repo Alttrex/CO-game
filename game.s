@@ -1,19 +1,22 @@
 .data
     .include "constants.s"
-
     
+    # variables
+    # ------------------------------------------------------------
     displayTextBuffer: 
-        .zero 0x100 # allocate 100 zeros
-
+        .zero 0x100 # allocate 100 zeros (null bytes)
     
-    displayTextBufferIndex:
-        .quad 0
+    displayTextBufferIndex: .quad 0
+
+    yesNoTextPointer: .quad 0
+
+    # -------------------------------------------------------------
 
 .text
 .global main
 
 main:
-    # epilogue
+    # prologue
     pushq %rbp
     movq  %rsp, %rbp
 
@@ -23,8 +26,11 @@ main:
     movq  $windowTitle, %rdx
     call  InitWindow
 
+    # TEMP
+    movq  $textNo, yesNoTextPointer
+
     mainloop:
-        # if window should close, end loop
+        # if window should close, end loop (and program)
         call WindowShouldClose
         cmp  $1, %rax
         je   end
@@ -39,7 +45,7 @@ main:
 
             # draw text stored in displayTextBuffer
             movq  $word, %rdi
-            movq  $350, %rsi
+            movq  $10, %rsi
             movq  $250, %rdx
             movq  $50, %rcx
             movq  RED, %r8
@@ -52,9 +58,16 @@ main:
             movq  RED, %r8
             call DrawText
 
-            
+            movq  yesNoTextPointer, %rdi
+            movq  $500, %rsi
+            movq  $10, %rdx
+            movq  $50, %rcx
+            movq  RED, %r8
+            call DrawText
+
 
         call EndDrawing
+
         jmp  mainloop    
 
 end:
@@ -62,6 +75,7 @@ end:
     call  CloseWindow
     movq  $0, %rdi
     call  exit
+
 
 # *************************************************************************************************************************
 # * Subroutine: void processInput()                                                                                       *
@@ -78,9 +92,27 @@ processInput:
 
     # if enter is pressed, clear displayed string
     movq $257, %rdi # 257 = enter key
-    call IsKeyDown
+    call IsKeyPressed
     cmpb $0, %al   
     je  enterNotPressed
+
+        # TEMP: check if strings are the same
+        # --------------------------------------------------------------------
+        movq  $displayTextBuffer, %rdi
+        movq  $word, %rsi
+        call  strcmp
+        cmp   $0, %rax
+        jne   setNo
+
+        setYes:
+            movq $textYes, yesNoTextPointer
+            jmp  afterStringComparison
+
+        setNo:
+            movq $textNo, yesNoTextPointer
+
+        afterStringComparison:
+        # --------------------------------------------------------------------
     
         call clearDisplayBuffer
     
@@ -92,15 +124,10 @@ processInput:
 
     ret
 
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
 
 # *************************************************************************************************************************
 # * Subroutine: void processCharsPressed()                                                                                *
-# * Description: Processes all the chars pressed since last GetCharPressed call. Adds every char to displayStringBuffer   *
+# * Description: Processes all the chars pressed since last GetCharPressed call. Adds every char to displayTextBuffer     *
 # * Parameters: -                                                                                                         *
 # *************************************************************************************************************************
 processCharsPressed:
@@ -130,10 +157,11 @@ processCharsPressed:
 
     ret
 
+
 # *********************************************************************************
 # * Subroutine: void processCharsPressed(char toAdd)                              *
-# * Description: adds a char to the end of string stored in displayStringBuffer   *
-# * Parameters: toAdd - char that gets added to displayStringBuffer               *
+# * Description: adds a char to the end of string stored in displayTextBuffer     *
+# * Parameters: toAdd - char that gets added to displayTextBuffer                 *
 # *********************************************************************************
 addCharToDisplayBuffer:
     # prologue
@@ -141,15 +169,15 @@ addCharToDisplayBuffer:
     movq  %rsp, %rbp
 
 
-    # move the byte in %sil into displayTextBuffer at index displayTextBufferIndex
+    # move the byte in %dil (toAdd) into displayTextBuffer at index displayTextBufferIndex
     movq  displayTextBufferIndex, %rbx   # move index into rbx
-    leaq  displayTextBuffer(%rip), %rcx # move the address of displayTextBuffer into rcx
+    leaq  displayTextBuffer, %rcx # move the address of displayTextBuffer into rcx
     movb  %dil, (%rbx, %rcx, 1) # move the char into address rbx + rcx*1 (indirect addressing)
-    incq  displayTextBufferIndex(%rip) # increment index
+    incq  displayTextBufferIndex # increment index
 
-    # move null byte after the last character
+    # set the next character to null byte
     movq  displayTextBufferIndex, %rbx   # move index into rbx
-    leaq  displayTextBuffer(%rip), %rcx # move the address of displayTextBuffer into rcx
+    leaq  displayTextBuffer, %rcx # move the address of displayTextBuffer into rcx
     movb  $0, (%rbx, %rcx, 1) # move the char into address rbx + rcx*1 (indirect addressing)
 
     # epilogue
@@ -157,6 +185,7 @@ addCharToDisplayBuffer:
     popq  %rbp
 
     ret
+
 
 # *******************************************
 # * Subroutine: void clearDisplayBuffer()   *
@@ -179,9 +208,3 @@ clearDisplayBuffer:
     popq  %rbp
 
     ret
-
-
-# TODO
-compareStrings:
-
-

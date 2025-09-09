@@ -1,4 +1,9 @@
-debugIntMessage: .asciz "%lu\n" # TEMP
+    debugIntMessage: .asciz "%lu\n" # TEMP
+    holySHIIIIT: .asciz "HOOOOLLY SHIT\n" # TEMP
+
+    textYes: .asciz "Yes"
+    textNo: .asciz "No"
+    textNewLine: .asciz "\n"
 
     screenWidth: .quad 800
     screenHeight: .quad 600
