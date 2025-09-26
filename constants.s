@@ -8,10 +8,10 @@
     screenWidth: .quad 800
     screenHeight: .quad 600
 
-    GRAY:
-        .byte 130 # r
-        .byte 130 # g
-        .byte 130 # b
+    WHITE:
+        .byte 250 # r
+        .byte 250 # g
+        .byte 250 # b
         .byte 255 # a
 
     RED:
@@ -25,3 +25,5 @@
 
 
     word: .asciz "stupid"
+
+    
