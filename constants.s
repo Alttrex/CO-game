@@ -22,6 +22,7 @@
     
     enemyWidth: .quad 100
     enemyHeight: .quad 50
+    enemyStartX: .quad 700
 
 
     windowTitle: .asciz "Typper"

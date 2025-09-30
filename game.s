@@ -39,9 +39,34 @@ main:
     # create an enemy on (400, 300)
     leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
     movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq $400, %rdx # third parameter - x coordinate
+    movq enemyStartX, %rdx # third parameter - x coordinate
     movq $300, %rcx # fourth parameter - y coordinate
     call createEnemyAtIndex
+    incq -8(%rbp) # increment size of the array
+
+    # create an enemy on (400, 100)
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
+    movq enemyStartX, %rdx # third parameter - x coordinate
+    movq $100, %rcx # fourth parameter - y coordinate
+    call createEnemyAtIndex
+    incq -8(%rbp) # increment size of the array
+
+    # create an enemy on (400, 200)
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
+    movq enemyStartX, %rdx # third parameter - x coordinate
+    movq $200, %rcx # fourth parameter - y coordinate
+    call createEnemyAtIndex
+    incq -8(%rbp) # increment size of the array
+
+    # create an enemy on (400, 400)
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
+    movq enemyStartX, %rdx # third parameter - x coordinate
+    movq $400, %rcx # fourth parameter - y coordinate
+    call createEnemyAtIndex
+    incq -8(%rbp) # increment size of the array
 
     # TEMP
     movq  $textNo, yesNoTextPointer
@@ -60,32 +85,32 @@ main:
             movq  GRAY, %rdi
             call  ClearBackground
 
-            # draw text stored in displayTextBuffer
-            movq  $word, %rdi
-            movq  $10, %rsi
-            movq  $250, %rdx
-            movq  $50, %rcx
-            movq  RED, %r8
-            call DrawText
+            // # draw text stored in displayTextBuffer
+            // movq  $word, %rdi
+            // movq  $10, %rsi
+            // movq  $250, %rdx
+            // movq  $50, %rcx
+            // movq  RED, %r8
+            // call DrawText
 
-            movq  $displayTextBuffer, %rdi
-            movq  $10, %rsi
-            movq  $10, %rdx
-            movq  $50, %rcx
-            movq  RED, %r8
-            call DrawText
+            // movq  $displayTextBuffer, %rdi
+            // movq  $10, %rsi
+            // movq  $10, %rdx
+            // movq  $50, %rcx
+            // movq  RED, %r8
+            // call DrawText
 
-            movq  yesNoTextPointer, %rdi
-            movq  $500, %rsi
-            movq  $10, %rdx
-            movq  $50, %rcx
-            movq  RED, %r8
-            call DrawText
+            // movq  yesNoTextPointer, %rdi
+            // movq  $500, %rsi
+            // movq  $10, %rdx
+            // movq  $50, %rcx
+            // movq  RED, %r8
+            // call DrawText
 
-            
-            leaq -1600(%rbp), %rdi  # memory location of the enemy
-            movq $0, %rsi # index of the enemy
-            call drawEnemy
+            # process enemies
+            leaq -1600(%rbp), %rdi  # memory location of the enemy array
+            movq -8(%rbp), %rsi # size of the array
+            call processEnemies
 
 
         call EndDrawing
@@ -334,6 +359,36 @@ drawEnemyAtIndex:
     leaq (%rdi, %rsi, 8), %rdi # load the memory address of where to store enemy to %rdi
 
     call drawEnemy # create the enemy
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# *****************************************************************************************
+# * Subroutine: void processEnemies(Enemy *enemyArray, long enemyArraySize)               *    
+# * Description: Loops thorugh the enemies and draws them (for now)                       *
+# * Parameters: enemyArray - start of the enemy array                                     *
+# *             enemyArraySize - size of the array                                        * 
+# *****************************************************************************************
+processEnemies:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    pushq %rsi # loop variable: -8(%rbp)
+    pushq %rdi # enemyArray: -16(%rbp)
+
+    processEnemies_loop:
+         decq -8(%rbp) # decrement loop variable (as the first index is one lower than size)
+        movq -16(%rbp), %rdi # enemy array as the first parameter
+        movq -8(%rbp), %rsi # enemy index as the second parameter
+        call drawEnemyAtIndex # draw the enemy
+       
+        ## if it is greater than zero, loop again
+        cmp $0, -8(%rbp)
+        jg processEnemies_loop
 
     # epilogue
     movq  %rbp, %rsp
