@@ -26,11 +26,35 @@ main:
     movq  $windowTitle, %rdx
     call  InitWindow
 
+    subq $800, %rsp # reserve 100 quads for variables
+                    # -800(%rbp) -> -8(%rbp)
+    
+    subq $800, %rsp # reserve another 100 quads for Enemy array
+                    # that is gonna be our Enemy array
+                    # -1600(%rbp) -> -808(%rbp)
+    
+    movq $0, -8(%rbp) # size of our array: -8(%rbp)
+             # now we can address the i-th enemy with (enemy_array, i, enemy_size_in_bytes)
+
+    # create an enemy on (400, 300)
+    movq -8(%rbp), %rdi # load the number of enemies (index of the next enemy to create)
+    
+    # multiply %rdi by 2, as enemy has 2 quads
+    movq $2, %rax
+    mul %rdi
+    movq %rax, %rdi
+
+    leaq -1600(%rbp), %rsi # load the memory address of the enemy array to rsi
+    leaq (%rsi, %rdi, 8), %rdi # the address where to create the enemy as the first parameter
+    movq $400, %rsi # first parameter - x coordinate
+    movq $300, %rdx # second parameter - y coordinate
+    call createEnemy
+
     # TEMP
     movq  $textNo, yesNoTextPointer
 
     mainloop:
-        # if window should close, end loop (and program)
+        ## if window should close, end loop (and program)
         call WindowShouldClose
         cmp  $1, %rax
         je   end
@@ -65,6 +89,18 @@ main:
             movq  RED, %r8
             call DrawText
 
+            
+            movq $0, %rdi # index of the enemy
+
+            # multiply %rdi by 2, as enemy has 2 bytes
+            movq $2, %rax
+            mul %rdi
+            movq %rax, %rdi
+            
+            leaq -1600(%rbp), %rsi # load the memory address of the enemy array to rsi
+            leaq (%rsi, %rdi, 8), %rdi  # memory location of the enemy
+            call drawEnemy
+
 
         call EndDrawing
 
@@ -90,7 +126,7 @@ processInput:
     # process characters
     call  processCharsPressed
 
-    # if enter is pressed, clear displayed string
+    ## if enter is pressed, clear displayed string
     movq $257, %rdi # 257 = enter key
     call IsKeyPressed
     cmpb $0, %al   
@@ -202,6 +238,59 @@ clearDisplayBuffer:
 
     # move 0 into byte at displayTextB
     movq  $0, displayTextBuffer(%rip)
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# struct Enemy {
+#     long x;
+#     long y;
+# }
+# size: 16 bytes
+
+# ****************************************************************************
+# * Subroutine: void createEnemy(Enemy *location, long x, long y)            *
+# * Description: Creates an enemy object at the specified memory location    *
+# * Parameters: location - memory address where to place the data            *
+# ****************************************************************************
+createEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+    
+    movq %rsi, 0(%rdi)  # move x to offset 0
+    movq %rdx, 8(%rdi)  # move y to offset 8
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+
+# ****************************************************************************
+# * Subroutine: void drawEnemy(Enemy *location)                              *
+# * Description: draws the enemy on (location) onto the screen               *
+# * Parameters: location - memory address of the enemy                       *
+# ****************************************************************************
+drawEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    pushq 0(%rdi)  # push x coordinate: -8(%rbp)
+    pushq 8(%rdi)  # push y coordinate: -16(%rbp)
+    
+    movq -8(%rbp), %rdi
+    movq -16(%rbp), %rsi
+    movq enemyWidth, %rdx
+    movq enemyHeight, %rcx
+    movq RED, %r8
+    call DrawRectangle
+
 
     # epilogue
     movq  %rbp, %rsp

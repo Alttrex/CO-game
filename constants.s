@@ -19,6 +19,9 @@
         .byte 0 # g
         .byte 0 # b
         .byte 255 # a
+    
+    enemyWidth: .quad 100
+    enemyHeight: .quad 50
 
 
     windowTitle: .asciz "Typper"
