@@ -14,6 +14,8 @@
 
     yesNoTextPointer: .quad 0
 
+    enemySpawnedMessage: .asciz "Enemy spawned at x: %ld, y: %ld. Index: %ld\n"
+
     # -------------------------------------------------------------
 
 .text
@@ -36,49 +38,25 @@ main:
     subq $800, %rsp # reserve another 100 quads for Enemy array
                     # that is gonna be our Enemy array
                     # -1600(%rbp) -> -808(%rbp)
+
+    # clear the array
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq $800, %rsi # size of the array - 100 bytes
+    call clearMemory
     
     movq $0, -8(%rbp) # size of our array: -8(%rbp)
              # now we can address the i-th enemy with (enemy_array, i, enemy_size_in_bytes)
 
-    # create an enemy on (400, 300)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $300, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
-    # create an enemy on (400, 100)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $100, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
-    # create an enemy on (400, 200)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $200, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
-    # create an enemy on (400, 400)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $400, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
     # TEMP
     movq  $textNo, yesNoTextPointer
 
-    movq $60, %rdi
+    movq $30, %rdi
     call SetTargetFPS
 
+    movq $0, -16(%rbp) # frame counter: -16(%rbp)
     mainloop:
+        incq -16(%rbp) # increment the frame counter
+
         ## if window should close, end loop (and program)
         call WindowShouldClose
         cmp  $1, %rax
@@ -92,39 +70,32 @@ main:
             movq  GRAY, %rdi
             call  ClearBackground
 
-            //movq varNum, %r11
-            //movq $words, %rsi
-            //movq  (%rsi, %r11, 8), %rdi 
-            // movq  $10, %rsi
-            // movq  $250, %rdx
-            // movq  $50, %rcx
-            // movq  RED, %r8
-            // call DrawText
-
-            // movq  $displayTextBuffer, %rdi
-            // movq  $10, %rsi
-            // movq  $10, %rdx
-            // movq  $50, %rcx
-            // movq  RED, %r8
-            // call DrawText
-
-            // movq  yesNoTextPointer, %rdi
-            // movq  $500, %rsi
-            // movq  $10, %rdx
-            // movq  $50, %rcx
-            // movq  RED, %r8
-            // call DrawText
-
             # process enemies
             leaq -1600(%rbp), %rdi  # memory location of the enemy array
             movq -8(%rbp), %rsi # size of the array
             call processEnemies
 
-            # print the FPS
             call GetFPS
-            movq $printFPSMessage, %rdi
-            movq %rax, %rsi
-            call printf
+
+            # spawn a new enemy every 2 seconds
+            cmp $60, -16(%rbp) # compare 120 to the frame counter
+            jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
+            
+            mainloop_spawnEnemy:
+                # print the FPS
+                movq $printFPSMessage, %rdi
+                movq %rax, %rsi
+                call printf
+
+                # spawn the enemy
+                leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+                call spawnEnemy
+                incq -8(%rbp) # increment size of the array
+                movq $0, -16(%rbp)
+
+               
+            mainloop_spawnEnemyEnd:
+
 
         call EndDrawing
 
@@ -161,6 +132,7 @@ processInput:
         movq varNum, %r11
         movq $words, %rsi
         movq (%rsi, %r11, 8), %rsi
+        movq $displayTextBuffer, %rdi
         call  strcmp
         cmp   $0, %rax
         jne   setNo
@@ -273,6 +245,7 @@ clearDisplayBuffer:
 # struct Enemy {
 #     long x;
 #     long y;
+#     long isAlive;
 # }
 # size: 16 bytes
 
@@ -288,12 +261,72 @@ createEnemy:
     
     movq %rsi, 0(%rdi)  # move x to offset 0
     movq %rdx, 8(%rdi)  # move y to offset 8
+    movq $1, 16(%rdi)  # set the enemy to be alive
 
     # epilogue
     movq  %rbp, %rsp
     popq  %rbp
 
     ret
+
+# ****************************************************************************
+# * Subroutine: void clearMemory(void *start, long amount)                   *
+# * Description: Sets the 'amount' of bytes from the 'start' to zero         *
+# ****************************************************************************
+clearMemory:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    clearMemory_loop:    
+        decq %rsi
+        movb $0, (%rdi, %rsi, 1)
+
+        ## if rsi is still above zero, loop again
+        cmp $0, %rsi 
+        jg clearMemory_loop
+        
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# ****************************************************************************
+# * Subroutine: long findAvailableIndex(Enemy *array)                        *
+# * Description: Finds the index of the first enemy that is not alive        *
+# ****************************************************************************
+findAvailableIndex:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    movq $0, %rsi # index
+    # loop thorugh the array
+    findAvailableIndex_loop:   
+        # get the index multiplied by the enemy struct size
+        movq %rsi, %rdx
+        movq enemyStructSize, %rax
+        mul %rdx 
+
+        ## if the enemy is dead, break
+        cmpq $0, 16(%rdi, %rax, 8) # 16(%rdi, %rax, 8) -> isAlive property of the enemy at index rsi (ENEMY_SIZE*rsi=rax)
+        je findAvailableIndex_loopEnd
+
+        incq %rsi
+        jmp findAvailableIndex_loop
+    findAvailableIndex_loopEnd:
+
+    movq %rsi, %rax # return the index
+        
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
 
 # *****************************************************************************************
 # * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y)    *    
@@ -326,6 +359,52 @@ createEnemyAtIndex:
 
     ret
 
+# ****************************************************************************************************
+# * Subroutine: void spawnEnemy(Enemy *enemyArray)                                                   *
+# * Description: Creates an enemy off screen with a random y coordinate at the first available index *
+# ****************************************************************************************************
+spawnEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+    
+    pushq %rdi # store the enemyArray: -8(%rbp)
+    pushq $0 # stack alignment: -16(%rbp)
+
+    # get the first available index 
+    call findAvailableIndex
+    
+    movq %rax, -16(%rbp) # store the index: -16(%rbp)
+
+    # get a random value from the range of spawn heights
+    movq ENEMY_START_Y_MIN, %rdi
+    movq ENEMY_START_Y_MAX, %rsi
+    call GetRandomValue
+    
+    pushq %rax # store the y coordinate: -24(%rbp)
+    pushq $0 # stack alignment
+
+    # print the spawn message
+    movq $enemySpawnedMessage, %rdi
+    movq enemyStartX, %rsi
+    movq %rax, %rdx
+    movq -16(%rbp), %rcx
+    call printf
+
+    popq %rcx
+    popq %rcx # restore y coord from the stack
+
+    popq %rsi # the index
+    popq %rdi # the array pointer
+    movq enemyStartX, %rdx # starting x coordinate
+    call createEnemyAtIndex # create the enemy
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
 
 # ****************************************************************************
 # * Subroutine: void drawEnemy(Enemy *location)                              *
@@ -345,7 +424,7 @@ drawEnemy:
     movq enemyWidth, %rdx
     movq enemyHeight, %rcx
     movq RED, %r8
-    call DrawRectangle
+    call DrawRectangleLines
 
 
     # epilogue

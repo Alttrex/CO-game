@@ -25,13 +25,17 @@
     
     enemyWidth: .quad 100
     enemyHeight: .quad 50
-    enemyStartX: .quad 700
+
+    enemyStartX: .quad 900
+
+    ENEMY_START_Y_MIN: .quad 100
+    ENEMY_START_Y_MAX: .quad 500
 
     ENEMY_MOVEMENT_SPEED: .quad 1
 
     windowTitle: .asciz "Typper"
 
-    enemyStructSize: .quad 2 # in quads
+    enemyStructSize: .quad 3 # in quads
 
     word: .asciz "stupid"
 
