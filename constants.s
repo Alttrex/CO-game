@@ -22,8 +22,12 @@
 
 
     windowTitle: .asciz "Typper"
+    
+    
+    TestWord: .asciz "Test"
 
 
-    word: .asciz "stupid"
+
+
 
     
