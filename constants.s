@@ -1,3 +1,4 @@
+
     debugIntMessage: .asciz "%lu\n" # TEMP
     holySHIIIIT: .asciz "HOOOOLLY SHIT\n" # TEMP
 
@@ -33,3 +34,4 @@
     enemyStructSize: .quad 2 # in quads
 
     word: .asciz "stupid"
+

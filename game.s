@@ -1,5 +1,7 @@
 .data
     .include "constants.s"
+    .include "List.s"
+    varNum: .quad 6784
     
     # variables
     # ------------------------------------------------------------
@@ -90,8 +92,9 @@ main:
             movq  GRAY, %rdi
             call  ClearBackground
 
-            // # draw text stored in displayTextBuffer
-            // movq  $word, %rdi
+            //movq varNum, %r11
+            //movq $words, %rsi
+            //movq  (%rsi, %r11, 8), %rdi 
             // movq  $10, %rsi
             // movq  $250, %rdx
             // movq  $50, %rcx
@@ -155,8 +158,9 @@ processInput:
 
         # TEMP: check if strings are the same
         # --------------------------------------------------------------------
-        movq  $displayTextBuffer, %rdi
-        movq  $word, %rsi
+        movq varNum, %r11
+        movq $words, %rsi
+        movq (%rsi, %r11, 8), %rsi
         call  strcmp
         cmp   $0, %rax
         jne   setNo
@@ -436,3 +440,4 @@ processEnemies:
     popq  %rbp
 
     ret
+
