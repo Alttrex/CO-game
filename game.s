@@ -5,6 +5,8 @@
     # ------------------------------------------------------------
     displayTextBuffer: 
         .zero 0x100 # allocate 100 zeros (null bytes)
+
+    waitTimeValue: .double 1000.0
     
     displayTextBufferIndex: .quad 0
 
@@ -71,6 +73,9 @@ main:
     # TEMP
     movq  $textNo, yesNoTextPointer
 
+    movq $60, %rdi
+    call SetTargetFPS
+
     mainloop:
         ## if window should close, end loop (and program)
         call WindowShouldClose
@@ -112,6 +117,11 @@ main:
             movq -8(%rbp), %rsi # size of the array
             call processEnemies
 
+            # print the FPS
+            call GetFPS
+            movq $printFPSMessage, %rdi
+            movq %rax, %rsi
+            call printf
 
         call EndDrawing
 
@@ -351,7 +361,7 @@ drawEnemyAtIndex:
     pushq %rbp
     movq  %rsp, %rbp
     
-    # multiply index by enemy size in quads
+    # multiply index by enemy size
     movq enemyStructSize, %rax
     mul %rsi
     mov %rax, %rsi
@@ -367,10 +377,36 @@ drawEnemyAtIndex:
     ret
 
 # *****************************************************************************************
+# * Subroutine: void moveEnemyAtIndex(Enemy *enemyArray, long index)                      *    
+# * Description: Moves the enemy - should be called on every enemy every frame once       *
+# * Parameters: enemyArray - start of the enemy array                                     *
+# *             index - index of the enemy                                                * 
+# *****************************************************************************************
+moveEnemyAtIndex:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # multiply index by enemy size
+    movq enemyStructSize, %rax
+    mul %rsi
+    mov %rax, %rsi
+
+    movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdi
+    subq ENEMY_MOVEMENT_SPEED, %rdx # increment the x coordinate by movement speed
+    movq %rdx, (%rdi, %rsi, 8) # store the coordinate back to memory
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# *****************************************************************************************
 # * Subroutine: void processEnemies(Enemy *enemyArray, long enemyArraySize)               *    
 # * Description: Loops thorugh the enemies and draws them (for now)                       *
 # * Parameters: enemyArray - start of the enemy array                                     *
-# *             enemyArraySize - size of the array                                        * 
+# *             index - index of the enemy                                                * 
 # *****************************************************************************************
 processEnemies:
     # prologue
@@ -381,13 +417,18 @@ processEnemies:
     pushq %rdi # enemyArray: -16(%rbp)
 
     processEnemies_loop:
-         decq -8(%rbp) # decrement loop variable (as the first index is one lower than size)
+        decq -8(%rbp) # decrement loop variable (as the first index is one lower than size)
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
+
         call drawEnemyAtIndex # draw the enemy
+
+        movq -16(%rbp), %rdi # enemy array as the first parameter
+        movq -8(%rbp), %rsi # enemy index as the second parameter
+        call moveEnemyAtIndex
        
         ## if it is greater than zero, loop again
-        cmp $0, -8(%rbp)
+        cmpq $0, -8(%rbp)
         jg processEnemies_loop
 
     # epilogue
