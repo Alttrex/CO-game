@@ -5,6 +5,8 @@
     textNo: .asciz "No"
     textNewLine: .asciz "\n"
 
+    printFPSMessage: .asciz "FPS: %lu\n"
+
     screenWidth: .quad 800
     screenHeight: .quad 600
 
@@ -19,9 +21,15 @@
         .byte 0 # g
         .byte 0 # b
         .byte 255 # a
+    
+    enemyWidth: .quad 100
+    enemyHeight: .quad 50
+    enemyStartX: .quad 700
 
+    ENEMY_MOVEMENT_SPEED: .quad 1
 
     windowTitle: .asciz "Typper"
 
+    enemyStructSize: .quad 2 # in quads
 
     word: .asciz "stupid"
