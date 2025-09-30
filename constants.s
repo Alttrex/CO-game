@@ -26,5 +26,6 @@
 
     windowTitle: .asciz "Typper"
 
+    enemyStructSize: .quad 2 # in quads
 
     word: .asciz "stupid"

@@ -37,18 +37,11 @@ main:
              # now we can address the i-th enemy with (enemy_array, i, enemy_size_in_bytes)
 
     # create an enemy on (400, 300)
-    movq -8(%rbp), %rdi # load the number of enemies (index of the next enemy to create)
-    
-    # multiply %rdi by 2, as enemy has 2 quads
-    movq $2, %rax
-    mul %rdi
-    movq %rax, %rdi
-
-    leaq -1600(%rbp), %rsi # load the memory address of the enemy array to rsi
-    leaq (%rsi, %rdi, 8), %rdi # the address where to create the enemy as the first parameter
-    movq $400, %rsi # first parameter - x coordinate
-    movq $300, %rdx # second parameter - y coordinate
-    call createEnemy
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
+    movq $400, %rdx # third parameter - x coordinate
+    movq $300, %rcx # fourth parameter - y coordinate
+    call createEnemyAtIndex
 
     # TEMP
     movq  $textNo, yesNoTextPointer
@@ -90,15 +83,8 @@ main:
             call DrawText
 
             
-            movq $0, %rdi # index of the enemy
-
-            # multiply %rdi by 2, as enemy has 2 bytes
-            movq $2, %rax
-            mul %rdi
-            movq %rax, %rdi
-            
-            leaq -1600(%rbp), %rsi # load the memory address of the enemy array to rsi
-            leaq (%rsi, %rdi, 8), %rdi  # memory location of the enemy
+            leaq -1600(%rbp), %rdi  # memory location of the enemy
+            movq $0, %rsi # index of the enemy
             call drawEnemy
 
 
@@ -175,7 +161,7 @@ processCharsPressed:
     # get a char pressed from pool
     call  GetCharPressed
 
-    # if function returns 0, no char is left in pool and we end
+    ## if function returns 0, no char is left in pool and we end
     cmp   $0, %rax
     je    afterCharsProcessing
 
@@ -270,6 +256,37 @@ createEnemy:
 
     ret
 
+# *****************************************************************************************
+# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y)    *    
+# * Description: Creates an enemy object at the specified index of the enemyArray         *
+# * Parameters: enemyArray - start of the enemy array                                     *
+# *             index - index of the array where to create the enemy                      * 
+# *****************************************************************************************
+createEnemyAtIndex:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+    
+    pushq %rdx  # push x coordinate: -8(%rbp)
+    pushq %rcx  # push y coordinate: -16(%rbp)
+
+    # multiply index by enemy size in quads
+    movq enemyStructSize, %rax
+    mul %rsi
+    mov %rax, %rsi
+
+    leaq (%rdi, %rsi, 8), %rdi # load the memory address of where to store enemy to %rdi
+    popq %rdx # load y coordinate
+    popq %rsi # load x coordinate
+
+    call createEnemy # create the enemy
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
 
 # ****************************************************************************
 # * Subroutine: void drawEnemy(Enemy *location)                              *
@@ -291,6 +308,32 @@ drawEnemy:
     movq RED, %r8
     call DrawRectangle
 
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# *****************************************************************************************
+# * Subroutine: void drawEnemyAtIndex(Enemy *enemyArray, long index)                      *    
+# * Description: Draws the enemy object at the specified index of the enemyArray          *
+# * Parameters: enemyArray - start of the enemy array                                     *
+# *             index - index of the array                                                * 
+# *****************************************************************************************
+drawEnemyAtIndex:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+    
+    # multiply index by enemy size in quads
+    movq enemyStructSize, %rax
+    mul %rsi
+    mov %rax, %rsi
+
+    leaq (%rdi, %rsi, 8), %rdi # load the memory address of where to store enemy to %rdi
+
+    call drawEnemy # create the enemy
 
     # epilogue
     movq  %rbp, %rsp
