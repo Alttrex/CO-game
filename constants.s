@@ -1,3 +1,4 @@
+
     debugIntMessage: .asciz "%lu\n" # TEMP
     holySHIIIIT: .asciz "HOOOOLLY SHIT\n" # TEMP
 
@@ -5,13 +6,15 @@
     textNo: .asciz "No"
     textNewLine: .asciz "\n"
 
+    printFPSMessage: .asciz "FPS: %lu\n"
+
     screenWidth: .quad 800
     screenHeight: .quad 600
 
-    WHITE:
-        .byte 250 # r
-        .byte 250 # g
-        .byte 250 # b
+    GRAY:
+        .byte 130 # r
+        .byte 130 # g
+        .byte 130 # b
         .byte 255 # a
 
     RED:
@@ -19,15 +22,16 @@
         .byte 0 # g
         .byte 0 # b
         .byte 255 # a
+    
+    enemyWidth: .quad 100
+    enemyHeight: .quad 50
+    enemyStartX: .quad 700
 
+    ENEMY_MOVEMENT_SPEED: .quad 1
 
     windowTitle: .asciz "Typper"
-    
-    
-    TestWord: .asciz "Test"
 
+    enemyStructSize: .quad 2 # in quads
 
+    word: .asciz "stupid"
 
-
-
-    
