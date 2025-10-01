@@ -1,5 +1,5 @@
 
-    debugIntMessage: .asciz "%lu\n" # TEMP
+    debugIntMessage: .asciz "%ld\n" # TEMP
     holySHIIIIT: .asciz "HOOOOLLY SHIT\n" # TEMP
 
     textYes: .asciz "Yes"

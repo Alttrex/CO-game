@@ -285,16 +285,128 @@ processEnemies:
 
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
+        call isEnemyAtIndexAlive
 
-        call drawEnemyAtIndex # draw the enemy
+        ## if the enemy is dead, continue
+        cmp $0, %rax
+        je processEnemies_loop_isDead
+        processEnemies_loop_isAlive:
+            movq -16(%rbp), %rdi # enemy array as the first parameter
+            movq -8(%rbp), %rsi # enemy index as the second parameter
 
-        movq -16(%rbp), %rdi # enemy array as the first parameter
-        movq -8(%rbp), %rsi # enemy index as the second parameter
-        call moveEnemyAtIndex
+            call drawEnemyAtIndex # draw the enemy
+
+            movq -16(%rbp), %rdi # enemy array as the first parameter
+            movq -8(%rbp), %rsi # enemy index as the second parameter
+            call moveEnemyAtIndex
+        processEnemies_loop_isDead:
        
-        jg processEnemies_loop
+        jmp processEnemies_loop
 
     processEnemies_loopEnd:
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# *****************************************************************************************
+# * Subroutine: boolean isEnemyAtIndexAlive(Enemy *enemyArray, long index)                *    
+# * Description: Returns the isAlive property of the enemy at index                       *
+# *****************************************************************************************
+isEnemyAtIndexAlive:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # multiply index by enemy size
+    movq enemyStructSize, %rax
+    mul %rsi
+    mov %rax, %rsi
+
+    movq 16(%rdi, %rsi, 8), %rax # return the isAlive property
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# ***********************************************************************************
+# * Subroutine: void killEnemyAtIndex(Enemy *enemyArray, long index)                *    
+# * Description: Sets the isAlive property of the enemy to 0                        *
+# ***********************************************************************************
+killEnemyAtIndex:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # multiply index by enemy size
+    movq enemyStructSize, %rax
+    mul %rsi
+    mov %rax, %rsi
+
+    movq $0, 16(%rdi, %rsi, 8) # set isAlive to 0
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# ******************************************************************************************************************************
+# * Subroutine: long findEnemyWithWord(Enemy *enemyArray, long arraySize,  char *word)                                         *
+# * Description: returns the index of the first enemy that contains the word. Returns -1 if no such enemy exists               *
+# ******************************************************************************************************************************
+findEnemyWithWord:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    pushq %rdi # the array pointer:  -8(%rbp)
+    pushq %rsi # the array size:    -16(%rbp)
+    pushq %rdx # the word:          -24(%rbp)
+
+    movq $-1, %rsi # index
+    # loop thorugh the array
+    findEnemyWithWord_loop:
+        incq %rsi # increment index
+        ## if index >= arraySize, return -1
+            cmpq -16(%rbp), %rsi
+            jge findEnemyWithWord_returnNegativeOne
+
+        # get the index multiplied by the enemy struct size
+        movq %rsi, %rdx
+        movq enemyStructSize, %rax
+        mul %rdx 
+
+        movq -8(%rbp), %rdi # load the array pointer back to rdi
+        ## if the enemy is dead, continue
+            cmpq $0, 16(%rdi, %rax, 8) # 16(%rdi, %rax, 8) -> isAlive property of the enemy at index rsi (ENEMY_SIZE*rsi=rax)
+            je findEnemyWithWord_loop
+        ## else if the enemy's word matches, break
+            pushq %rsi # store rsi
+            movq 24(%rdi, %rax, 8), %rsi # enemy's word
+            movq -24(%rbp), %rdi # our word            
+
+            call strcmp # returns 0 if the strings are equal
+
+            popq %rsi # restore rsi
+
+            cmpq $0, %rax
+            je  findEnemyWithWord_loopEnd
+        ## else, go to the next iteration
+            jmp findEnemyWithWord_loop
+    findEnemyWithWord_loopEnd:
+
+    movq %rsi, %rax # return the index
+    jmp findEnemyWithWord_epilogue
+
+    findEnemyWithWord_returnNegativeOne:
+        movq $-1, %rax
+
+    findEnemyWithWord_epilogue:
 
     # epilogue
     movq  %rbp, %rsp

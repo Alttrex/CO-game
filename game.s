@@ -2,17 +2,15 @@
     .include "constants.s"
     .include "List.s"
     wordNumber: .quad 0
+
+    maxWordIndex: .quad 200
     
     # variables
     # ------------------------------------------------------------
-    displayTextBuffer: 
+    typedTextBuffer: 
         .zero 0x100 # allocate 100 zeros (null bytes)
-
-    waitTimeValue: .double 1000.0
     
-    displayTextBufferIndex: .quad 0
-
-    yesNoTextPointer: .quad 0
+    typedTextBufferIndex: .quad 0
 
     enemySpawnedMessage: .asciz "Enemy spawned at x: %ld, y: %ld with the word '%s'. Index: %ld\n"
 
@@ -46,11 +44,8 @@ main:
     movq $800, %rsi # size of the array - 100 bytes
     call clearMemory
     
-    movq $0, -8(%rbp) # size of our array: -8(%rbp)
+    movq $20, -8(%rbp) # size of our array: -8(%rbp)
              # now we can address the i-th enemy with (enemy_array, i, enemy_size_in_bytes)
-
-    # TEMP
-    movq  $textNo, yesNoTextPointer
 
     movq $30, %rdi
     call SetTargetFPS
@@ -64,6 +59,9 @@ main:
         cmp  $1, %rax
         je   end
 
+
+        leaq -1600(%rbp), %rdi  # memory location of the enemy array
+        movq -8(%rbp), %rsi # size of the array
         call processInput
 
         call BeginDrawing
@@ -71,6 +69,13 @@ main:
             # clear background with gray color
             movq  GRAY, %rdi
             call  ClearBackground
+
+            movq  $typedTextBuffer, %rdi
+            movq  $10, %rsi
+            movq  $10, %rdx
+            movq  $50, %rcx
+            movq  RED, %r8
+            call DrawText
 
             # process enemies
             leaq -1600(%rbp), %rdi  # memory location of the enemy array
@@ -80,7 +85,7 @@ main:
             call GetFPS
 
             # spawn a new enemy every 2 seconds
-            cmpq $60, -16(%rbp) # compare 120 to the frame counter
+            cmpq $30, -16(%rbp) # compare 60 to the frame counter
             jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
             
             mainloop_spawnEnemy:
@@ -89,18 +94,14 @@ main:
                 movq %rax, %rsi
                 call printf
 
-                # get the word at index wordIndex
-                movq $words, %rdi
-                movq wordNumber, %rsi
-                movq (%rdi, %rsi, 8), %rsi # loads the word at index rsi into rsi -> second argument of spawnEnemy
+                movq maxWordIndex, %rdi
+                call getRandomWord
+                movq %rax, %rsi # the random word as the sexond parameter
 
                 # spawn the enemy
                 leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
                 call spawnEnemy
-                incq -8(%rbp) # increment size of the array
-                movq $0, -16(%rbp)
-
-               
+                movq $0, -16(%rbp)  # set frame counter to 0        
             mainloop_spawnEnemyEnd:
 
 
@@ -116,7 +117,7 @@ end:
 
 
 # *************************************************************************************************************************
-# * Subroutine: void processInput()                                                                                       *
+# * Subroutine: void processInput(Enemy *enemyArray, long arraySize)                                                      *
 # * Description: Processes all input related events. Should be called once during every iteration of main loop            *
 # * Parameters: -                                                                                                         *
 # *************************************************************************************************************************
@@ -125,14 +126,35 @@ processInput:
     pushq %rbp
     movq  %rsp, %rbp
 
+    pushq %rdi # enemyArray
+    pushq %rsi # arraySize
+
     # process characters
     call  processCharsPressed
 
-    ## if enter is pressed, clear displayed string
+    ## if enter is pressed, clear typedTextBuffer
     movq $257, %rdi # 257 = enter key
     call IsKeyPressed
     cmpb $0, %al   
     je  enterNotPressed
+    ## if enter is pressed, clear typedTextBuffer and kill the enemy that contains the word
+    movq -8(%rbp), %rdi # enemyArray
+    movq -16(%rbp), %rsi # arraySize
+    movq $typedTextBuffer, %rdx # the word to find
+    call findEnemyWithWord
+
+    ## if there exists such enemy (the function did not return -1, kill it)
+    cmpq $-1, %rax
+    je processInput_afterKillEnemy
+
+    movq -8(%rbp), %rdi
+    movq %rax, %rsi
+    call killEnemyAtIndex
+
+    processInput_afterKillEnemy:
+
+    call clearDisplayBuffer # clear typedTextBuffer
+
     
     enterNotPressed:    # if enter is not pressed, jumps here
 
@@ -145,7 +167,7 @@ processInput:
 
 # *************************************************************************************************************************
 # * Subroutine: void processCharsPressed()                                                                                *
-# * Description: Processes all the chars pressed since last GetCharPressed call. Adds every char to displayTextBuffer     *
+# * Description: Processes all the chars pressed since last GetCharPressed call. Adds every char to typedTextBuffer     *
 # * Parameters: -                                                                                                         *
 # *************************************************************************************************************************
 processCharsPressed:
@@ -178,8 +200,8 @@ processCharsPressed:
 
 # *********************************************************************************
 # * Subroutine: void processCharsPressed(char toAdd)                              *
-# * Description: adds a char to the end of string stored in displayTextBuffer     *
-# * Parameters: toAdd - char that gets added to displayTextBuffer                 *
+# * Description: adds a char to the end of string stored in typedTextBuffer     *
+# * Parameters: toAdd - char that gets added to typedTextBuffer                 *
 # *********************************************************************************
 addCharToDisplayBuffer:
     # prologue
@@ -187,15 +209,15 @@ addCharToDisplayBuffer:
     movq  %rsp, %rbp
 
 
-    # move the byte in %dil (toAdd) into displayTextBuffer at index displayTextBufferIndex
-    movq  displayTextBufferIndex, %rbx   # move index into rbx
-    leaq  displayTextBuffer, %rcx # move the address of displayTextBuffer into rcx
+    # move the byte in %dil (toAdd) into typedTextBuffer at index typedTextBufferIndex
+    movq  typedTextBufferIndex, %rbx   # move index into rbx
+    leaq  typedTextBuffer, %rcx # move the address of typedTextBuffer into rcx
     movb  %dil, (%rbx, %rcx, 1) # move the char into address rbx + rcx*1 (indirect addressing)
-    incq  displayTextBufferIndex # increment index
+    incq  typedTextBufferIndex # increment index
 
     # set the next character to null byte
-    movq  displayTextBufferIndex, %rbx   # move index into rbx
-    leaq  displayTextBuffer, %rcx # move the address of displayTextBuffer into rcx
+    movq  typedTextBufferIndex, %rbx   # move index into rbx
+    leaq  typedTextBuffer, %rcx # move the address of typedTextBuffer into rcx
     movb  $0, (%rbx, %rcx, 1) # move the char into address rbx + rcx*1 (indirect addressing)
 
     # epilogue
@@ -216,10 +238,10 @@ clearDisplayBuffer:
     movq  %rsp, %rbp
 
     # reset index
-    movq $0, displayTextBufferIndex(%rip)
+    movq $0, typedTextBufferIndex(%rip)
 
     # move 0 into byte at displayTextB
-    movq  $0, displayTextBuffer(%rip)
+    movq  $0, typedTextBuffer(%rip)
 
     # epilogue
     movq  %rbp, %rsp
@@ -244,6 +266,29 @@ clearMemory:
         cmp $0, %rsi 
         jg clearMemory_loop
         
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# **************************************************************************************************
+# * Subroutine: char* getRandomWord(maxWord)                                                       *
+# * Description: Returns a random word from the word list up to the one with index maxWord         *
+# **************************************************************************************************
+getRandomWord:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # get a random index
+    movq %rdi, %rsi
+    movq $0, %rdi
+    call GetRandomValue 
+
+    movq $words, %rdi
+    movq (%rdi, %rax, 8), %rax # return the word on the index
 
     # epilogue
     movq  %rbp, %rsp
