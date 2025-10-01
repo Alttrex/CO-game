@@ -31,11 +31,13 @@
     ENEMY_START_Y_MIN: .quad 100
     ENEMY_START_Y_MAX: .quad 500
 
-    ENEMY_MOVEMENT_SPEED: .quad 1
+    ENEMY_MOVEMENT_SPEED: .quad 3
 
     windowTitle: .asciz "Typper"
 
-    enemyStructSize: .quad 3 # in quads
+    enemyStructSize: .quad 4 # in quads
 
     word: .asciz "stupid"
+
+    enemyFontSize: .quad 22
 

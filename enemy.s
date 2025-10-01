@@ -1,15 +1,16 @@
 # struct Enemy {
-#     long x;
-#     long y;
-#     long isAlive;
+#     long x;       # offset: 0
+#     long y;       # offset: 8
+#     long isAlive; # offset: 16
+#     char *word;   # offset: 24
 # }
-# size: 16 bytes
+# size: 24 bytes (4 quads)
 
-# ****************************************************************************
-# * Subroutine: void createEnemy(Enemy *location, long x, long y)            *
-# * Description: Creates an enemy object at the specified memory location    *
-# * Parameters: location - memory address where to place the data            *
-# ****************************************************************************
+# ****************************************************************************************
+# * Subroutine: void createEnemy(Enemy *location, long x, long y, char* word)            *
+# * Description: Creates an enemy object at the specified memory location                *
+# * Parameters: location - memory address where to place the data                        *
+# ****************************************************************************************
 createEnemy:
     # prologue
     pushq %rbp
@@ -17,7 +18,8 @@ createEnemy:
     
     movq %rsi, 0(%rdi)  # move x to offset 0
     movq %rdx, 8(%rdi)  # move y to offset 8
-    movq $1, 16(%rdi)  # set the enemy to be alive
+    movq $1,   16(%rdi)  # set the enemy to be alive
+    movq %rcx, 24(%rdi)  # movq the word to offset 24
 
     # epilogue
     movq  %rbp, %rsp
@@ -61,12 +63,12 @@ findAvailableIndex:
     ret
 
 
-# *****************************************************************************************
-# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y)    *    
-# * Description: Creates an enemy object at the specified index of the enemyArray         *
-# * Parameters: enemyArray - start of the enemy array                                     *
-# *             index - index of the array where to create the enemy                      * 
-# *****************************************************************************************
+# ***************************************************************************************************
+# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y, char* word)  *    
+# * Description: Creates an enemy object at the specified index of the enemyArray                   *
+# * Parameters: enemyArray - start of the enemy array                                               *
+# *             index - index of the array where to create the enemy                                * 
+# ***************************************************************************************************
 createEnemyAtIndex:
     # prologue
     pushq %rbp
@@ -83,6 +85,7 @@ createEnemyAtIndex:
     leaq (%rdi, %rsi, 8), %rdi # load the memory address of where to store enemy to %rdi
     popq %rdx # load y coordinate
     popq %rsi # load x coordinate
+    movq %r8, %rcx # the word
 
     call createEnemy # create the enemy
 
@@ -93,7 +96,7 @@ createEnemyAtIndex:
     ret
 
 # ****************************************************************************************************
-# * Subroutine: void spawnEnemy(Enemy *enemyArray)                                                   *
+# * Subroutine: void spawnEnemy(Enemy *enemyArray, char* word)                                       *
 # * Description: Creates an enemy off screen with a random y coordinate at the first available index *
 # ****************************************************************************************************
 spawnEnemy:
@@ -102,32 +105,33 @@ spawnEnemy:
     movq  %rsp, %rbp
     
     pushq %rdi # store the enemyArray: -8(%rbp)
-    pushq $0 # stack alignment: -16(%rbp)
+    pushq %rsi # store the word:       -16(%rbp)
 
     # get the first available index 
     call findAvailableIndex
     
-    movq %rax, -16(%rbp) # store the index: -16(%rbp)
+    pushq %rax  # store the index: -24(%rbp)
+    pushq $0    # stack alignment: -32(%rbp)
 
     # get a random value from the range of spawn heights
     movq ENEMY_START_Y_MIN, %rdi
     movq ENEMY_START_Y_MAX, %rsi
     call GetRandomValue
     
-    pushq %rax # store the y coordinate: -24(%rbp)
-    pushq $0 # stack alignment
+    movq %rax, -32(%rbp) # store the y coordinate: -32(%rbp)
 
     # print the spawn message
     movq $enemySpawnedMessage, %rdi
-    movq enemyStartX, %rsi
-    movq %rax, %rdx
-    movq -16(%rbp), %rcx
+    movq enemyStartX, %rsi  # x
+    movq %rax, %rdx         # y
+    movq -16(%rbp), %rcx    # the word
+    movq -24(%rbp), %r8     # the index
     call printf
 
-    popq %rcx
     popq %rcx # restore y coord from the stack
 
     popq %rsi # the index
+    popq %r8  # the word
     popq %rdi # the array pointer
     movq enemyStartX, %rdx # starting x coordinate
     call createEnemyAtIndex # create the enemy
@@ -151,13 +155,54 @@ drawEnemy:
 
     pushq 0(%rdi)  # push x coordinate: -8(%rbp)
     pushq 8(%rdi)  # push y coordinate: -16(%rbp)
+    pushq 24(%rdi) # push the conatining word: -24(%rbp)
+    pushq $0 # stack alignment
     
-    movq -8(%rbp), %rdi
-    movq -16(%rbp), %rsi
+    # draw the enemy rectangle
+    movq -8(%rbp), %rdi # x
+    movq -16(%rbp), %rsi # y
     movq enemyWidth, %rdx
     movq enemyHeight, %rcx
     movq RED, %r8
     call DrawRectangleLines
+
+    # draw the word
+        # raylib takes in the left upper corner of the text
+        # so first, we calculate the left x coord of the text -> enemy_x + enemy_width/2 - text_width/2
+    
+
+    movq -24(%rbp), %rdi # the text to measure
+    movq enemyFontSize, %rsi # font size
+    call MeasureText # reylib function -> returns text_width
+
+    movq $0, %rdx
+    movq $2, %r8
+    divq %r8 # rax = text_width/2
+    movq %rax, %rsi # rsi = text_width/2
+    movq -8(%rbp), %rdi # enemy_x
+    movq enemyWidth, %rax
+    divq %r8 # rax = enemyWidth//2
+    addq %rax, %rdi # rdi = enemy_x + enemeyWidth/2
+    subq %rsi, %rdi # rdi = enemy_x + enemy_width/2 - text_width/2 = text_x
+    
+    
+        # next, we calculate the top y coord. That is a little easier -> text_y = enemy_y + enemy_height/2 - font_size/2
+    movq enemyFontSize, %rax
+    movq $2, %r8
+    divq %r8 # rax = font_size/2
+    movq %rax, %rsi # rsi = font_size/2
+    movq enemyHeight, %rax
+    divq %r8 # rax = enemyHeight//2
+    movq -16(%rbp), %rdx # enemy_y
+    addq %rax, %rdx # rdx = enemy_y + enemyHeight/2
+    subq %rsi, %rdx # rdx = enemy_y + enemy_height/2 - font_size/2 = text_y
+    # y already in rdx -> third argument
+
+    movq %rdi, %rsi # text_x as the second argument   
+    movq -24(%rbp), %rdi # the word to draw
+    movq enemyFontSize, %rcx # font size
+    movq RED, %r8 # color
+    call DrawText     
 
 
     # epilogue
@@ -234,6 +279,10 @@ processEnemies:
 
     processEnemies_loop:
         decq -8(%rbp) # decrement loop variable (as the first index is one lower than size)
+        ## if it is lower than zero, break
+        cmpq $0, -8(%rbp)
+        jl processEnemies_loopEnd
+
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
 
@@ -243,9 +292,9 @@ processEnemies:
         movq -8(%rbp), %rsi # enemy index as the second parameter
         call moveEnemyAtIndex
        
-        ## if it is greater than zero, loop again
-        cmpq $0, -8(%rbp)
         jg processEnemies_loop
+
+    processEnemies_loopEnd:
 
     # epilogue
     movq  %rbp, %rsp

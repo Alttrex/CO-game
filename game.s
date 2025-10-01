@@ -1,7 +1,7 @@
 .data
     .include "constants.s"
     .include "List.s"
-    varNum: .quad 6784
+    wordNumber: .quad 0
     
     # variables
     # ------------------------------------------------------------
@@ -14,7 +14,7 @@
 
     yesNoTextPointer: .quad 0
 
-    enemySpawnedMessage: .asciz "Enemy spawned at x: %ld, y: %ld. Index: %ld\n"
+    enemySpawnedMessage: .asciz "Enemy spawned at x: %ld, y: %ld with the word '%s'. Index: %ld\n"
 
     # -------------------------------------------------------------
 
@@ -80,7 +80,7 @@ main:
             call GetFPS
 
             # spawn a new enemy every 2 seconds
-            cmp $60, -16(%rbp) # compare 120 to the frame counter
+            cmpq $60, -16(%rbp) # compare 120 to the frame counter
             jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
             
             mainloop_spawnEnemy:
@@ -88,6 +88,11 @@ main:
                 movq $printFPSMessage, %rdi
                 movq %rax, %rsi
                 call printf
+
+                # get the word at index wordIndex
+                movq $words, %rdi
+                movq wordNumber, %rsi
+                movq (%rdi, %rsi, 8), %rsi # loads the word at index rsi into rsi -> second argument of spawnEnemy
 
                 # spawn the enemy
                 leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
@@ -128,28 +133,6 @@ processInput:
     call IsKeyPressed
     cmpb $0, %al   
     je  enterNotPressed
-
-        # TEMP: check if strings are the same
-        # --------------------------------------------------------------------
-        movq varNum, %r11
-        movq $words, %rsi
-        movq (%rsi, %r11, 8), %rsi
-        movq $displayTextBuffer, %rdi
-        call  strcmp
-        cmp   $0, %rax
-        jne   setNo
-
-        setYes:
-            movq $textYes, yesNoTextPointer
-            jmp  afterStringComparison
-
-        setNo:
-            movq $textNo, yesNoTextPointer
-
-        afterStringComparison:
-        # --------------------------------------------------------------------
-    
-        call clearDisplayBuffer
     
     enterNotPressed:    # if enter is not pressed, jumps here
 
