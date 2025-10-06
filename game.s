@@ -58,9 +58,18 @@ main:
 
         ## if window should close, end loop (and program)
         call WindowShouldClose
-        cmp  $1, %rax
+        cmpq $1, %rax
+        je   end
+        
+
+        ## if the game is over -> enemies crossed the finish line, the game is over
+        leaq -1600(%rbp), %rdi
+        movq enemyAmount, %rsi
+        call isGameOver
+        cmpq  $1, %rax
         je   end
 
+        ### MAINLOOP ###
 
         leaq -1600(%rbp), %rdi  # memory location of the enemy array
         movq -8(%rbp), %rsi # size of the array
