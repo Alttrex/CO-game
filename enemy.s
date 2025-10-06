@@ -321,7 +321,7 @@ killEnemyAtIndex:
     ret
 
 # ******************************************************************************************************************************
-# * Subroutine: long findEnemyWithWord(Enemy *enemyArray, long arraySize, char *word)                                         *
+# * Subroutine: long findEnemyWithWord(Enemy *enemyArray, long arraySize, char *word)                                          *
 # * Description: returns the index of the first enemy that contains the word. Returns -1 if no such enemy exists               *
 # ******************************************************************************************************************************
 findEnemyWithWord:
@@ -370,6 +370,52 @@ findEnemyWithWord:
         movq $-1, %rax
 
     findEnemyWithWord_epilogue:
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# **************************************************************************************************************
+# * Subroutine: boolean isGameOver(Enemy *enemyArray, long arraySize)                                          *
+# * Description: returns 1, if an enemy has crossed the finish line and the game is over                       *
+# **************************************************************************************************************
+isGameOver:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    movq $0, %r8 # enemy index in r8
+    isGameOver_loop:
+        ## if index >= arraySize than zero, break
+        cmpq %rsi, %r8
+        jge isGameOver_loopEnd
+
+        # multiply index by enemy size
+        movq enemyStructSize, %rax
+        mul %r8
+        mov %rax, %rsi
+
+        ## if the x coordinate of the enemy is lower than finish line, return true
+        movq 0(%rdi, %r8, 8), %r10 # the x coordinate
+        cmpq ENEMY_FINISH_LINE, %r10
+        ## else, loop again
+        jge isGameOver_loop    
+
+        # return true
+        movq $1, %rax
+        jmp isGameOver_end
+
+        incq %r8 # increment loop variable (as the first index is one lower than size)
+
+    isGameOver_loopEnd:
+        # return false -> no enemy is behind finish line
+        movq $0, %rax
+        jmp isGameOver_end 
+
+    isGameOver_end:
+
 
     # epilogue
     movq  %rbp, %rsp

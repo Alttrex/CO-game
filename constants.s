@@ -37,7 +37,7 @@
 
     enemyStructSize: .quad 4 # in quads
 
-    word: .asciz "stupid"
-
     enemyFontSize: .quad 22
+
+    ENEMY_FINISH_LINE: .quad -100 # after enemy crosses this x, the game is over
 
