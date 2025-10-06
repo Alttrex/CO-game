@@ -349,6 +349,9 @@ killEnemyAtIndex:
 
     movq $0, 16(%rdi, %rsi, 8) # set isAlive to 0
 
+    incq score(%rip) # increment the score
+    
+
     # epilogue
     movq  %rbp, %rsp
     popq  %rbp

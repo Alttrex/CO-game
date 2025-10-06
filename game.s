@@ -2,6 +2,8 @@
     .include "constants.s"
     .include "List.s"
     wordNumber: .quad 0
+    scoreMessage: .asciz "Score: %ld"
+    score: .quad 0
 
     maxWordIndex: .quad 200
     
@@ -74,6 +76,17 @@ main:
             movq  $10, %rsi
             movq  $10, %rdx
             movq  $50, %rcx
+            movq  RED, %r8
+            call DrawText
+
+
+            movq  $scoreMessage, %rdi
+            movq  score, %rsi
+            call TextFormat
+            movq  %rax, %rdi
+            movq  $600, %rsi
+            movq  $10, %rdx
+            movq  $30, %rcx
             movq  RED, %r8
             call DrawText
 
