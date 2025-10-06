@@ -56,6 +56,7 @@ main:
 
     movq $0, -16(%rbp) # frame counter: -16(%rbp)
     mainloop:
+
         incq -16(%rbp) # increment the frame counter
 
         ## if window should close, end loop (and program)
@@ -69,7 +70,7 @@ main:
         movq enemyAmount, %rsi
         call isGameOver
         cmpq  $1, %rax
-        je   end
+        je   deathScreen
 
         ### MAINLOOP ###
 
@@ -135,6 +136,45 @@ main:
         call EndDrawing
 
         jmp  mainloop    
+
+deathScreen:
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq $800, %rsi # size of the array - 100 bytes
+    call clearMemory
+
+    movq $0, enemyAmount # reset enemy amount to 0
+    movq $0, score # reset score to 0
+    
+    call BeginDrawing
+    
+    movq  BLACK, %rdi
+    call ClearBackground
+
+    movq $50, %rsi
+    call MeasureText
+
+
+    movq  $deathMessage, %rdi
+    movq  $130, %rsi
+    movq  $200, %rdx
+    movq  $50, %rcx
+    movq  WHITE, %r8
+    call DrawText
+
+    call EndDrawing
+
+    movq $89, %rdi
+    call IsKeyPressed
+    cmpb $1, %al
+        
+
+    je   mainloop # if Y is pressed, restart the game
+
+    call WindowShouldClose
+    cmpq $1, %rax
+    je   end
+
+    jmp deathScreen
 
 end:
     # close window and exit with code 0

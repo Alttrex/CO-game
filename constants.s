@@ -11,6 +11,12 @@
     screenWidth: .quad 800
     screenHeight: .quad 600
 
+    BLACK:
+        .byte 0 # r
+        .byte 0 # g
+        .byte 0 # b
+        .byte 255 # a
+
     GRAY:
         .byte 130 # r
         .byte 130 # g
@@ -21,6 +27,11 @@
         .byte 100 # r
         .byte 0 # g
         .byte 0 # b
+        .byte 255 # a
+    WHITE:
+        .byte 255 # r
+        .byte 255 # g
+        .byte 255 # b
         .byte 255 # a
     
     enemyWidth: .quad 100
@@ -41,8 +52,9 @@
     ENEMY_FINISH_LINE: .quad -100 # after enemy crosses this x, the game is over
 
     ENEMY_FRAMES_PER_MOVEMENT: .quad 10
-    ENEMY_MOVEMENT_SPEED:      .quad 1
+    ENEMY_MOVEMENT_SPEED:      .quad 5
 
-    ENEMY_FRAMES_PER_SPAWN:    .quad 480
+    ENEMY_FRAMES_PER_SPAWN:    .quad 200
     FPS:                       .quad 120
+    deathMessage: .asciz "You Died! Play Again?"
 
