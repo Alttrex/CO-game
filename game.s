@@ -49,7 +49,7 @@ main:
     movq $20, -8(%rbp) # size of our array: -8(%rbp)
              # now we can address the i-th enemy with (enemy_array, i, enemy_size_in_bytes)
 
-    movq $30, %rdi
+    movq FPS, %rdi
     call SetTargetFPS
 
     movq $0, -16(%rbp) # frame counter: -16(%rbp)
@@ -96,7 +96,8 @@ main:
             call GetFPS
 
             # spawn a new enemy every 2 seconds
-            cmpq $30, -16(%rbp) # compare 60 to the frame counter
+            movq -16(%rbp), %r8
+            cmpq ENEMY_FRAMES_PER_SPAWN, %r8 # compare ENEMY_FRAMES_PER_SPAWN to the frame counter
             jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
             
             mainloop_spawnEnemy:

@@ -31,7 +31,6 @@
     ENEMY_START_Y_MIN: .quad 100
     ENEMY_START_Y_MAX: .quad 500
 
-    ENEMY_MOVEMENT_SPEED: .quad 3
 
     windowTitle: .asciz "Typper"
 
@@ -40,4 +39,10 @@
     enemyFontSize: .quad 22
 
     ENEMY_FINISH_LINE: .quad -100 # after enemy crosses this x, the game is over
+
+    ENEMY_FRAMES_PER_MOVEMENT: .quad 10
+    ENEMY_MOVEMENT_SPEED:      .quad 1
+
+    ENEMY_FRAMES_PER_SPAWN:    .quad 480
+    FPS:                       .quad 120
 

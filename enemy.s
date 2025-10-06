@@ -1,8 +1,8 @@
 # struct Enemy {
-#     long x;       # offset: 0
-#     long y;       # offset: 8
-#     TODO: type
-#     char *word;   # offset: 24
+#     long x;                       # offset: 0
+#     long y;                       # offset: 8
+#     long framesSinceLastMovement: # offset: 16
+#     char *word;                   # offset: 24
 # }
 # size: 24 bytes (4 quads)
 
@@ -16,8 +16,9 @@ createEnemy:
     pushq %rbp
     movq  %rsp, %rbp
     
-    movq %rsi, 0(%rdi)  # move x to offset 0
-    movq %rdx, 8(%rdi)  # move y to offset 8
+    movq %rsi, 0(%rdi)   # move x to offset 0
+    movq %rdx, 8(%rdi)   # move y to offset 8
+    movq $0, 16(%rdi)    # framesSinceLastMovement = 0
     movq %rcx, 24(%rdi)  # move the word to offset 24
 
     # epilogue
@@ -214,9 +215,23 @@ moveEnemyAtIndex:
     mul %rsi
     mov %rax, %rsi
 
-    movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdi
-    subq ENEMY_MOVEMENT_SPEED, %rdx # increment the x coordinate by movement speed
+    # increment the framesSinceLastMovement variable
+    incq 16(%rdi, %rsi, 8)
+    movq 16(%rdi, %rsi, 8), %r8 # move framesSinceLastMovement into r8
+
+    ## if framesSinceLastMovement < ENEMY_FRAMES_PER_MOVEMENT, skip movement
+    cmpq ENEMY_FRAMES_PER_MOVEMENT, %r8
+    jl  moveEnemyAtIndex_end
+
+    # move
+    movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdx
+    subq ENEMY_MOVEMENT_SPEED, %rdx # decrement the x coordinate by movement speed
     movq %rdx, (%rdi, %rsi, 8) # store the coordinate back to memory
+    movq $0, 16(%rdi, %rsi, 8) # reset framesSinceLastMovement
+
+    moveEnemyAtIndex_end:
+
+    incq 16(%rdi, %rsi, 8) # increment framesSinceLastMovement
 
     # epilogue
     movq  %rbp, %rsp
