@@ -1,7 +1,7 @@
 # struct Enemy {
 #     long x;       # offset: 0
 #     long y;       # offset: 8
-#     long isAlive; # offset: 16
+#     TODO: type
 #     char *word;   # offset: 24
 # }
 # size: 24 bytes (4 quads)
@@ -18,43 +18,7 @@ createEnemy:
     
     movq %rsi, 0(%rdi)  # move x to offset 0
     movq %rdx, 8(%rdi)  # move y to offset 8
-    movq $1,   16(%rdi)  # set the enemy to be alive
-    movq %rcx, 24(%rdi)  # movq the word to offset 24
-
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
-
-
-# ****************************************************************************
-# * Subroutine: long findAvailableIndex(Enemy *array)                        *
-# * Description: Finds the index of the first enemy that is not alive        *
-# ****************************************************************************
-findAvailableIndex:
-    # prologue
-    pushq %rbp
-    movq  %rsp, %rbp
-
-    movq $0, %rsi # index
-    # loop thorugh the array
-    findAvailableIndex_loop:   
-        # get the index multiplied by the enemy struct size
-        movq %rsi, %rdx
-        movq enemyStructSize, %rax
-        mul %rdx 
-
-        ## if the enemy is dead, break
-        cmpq $0, 16(%rdi, %rax, 8) # 16(%rdi, %rax, 8) -> isAlive property of the enemy at index rsi (ENEMY_SIZE*rsi=rax)
-        je findAvailableIndex_loopEnd
-
-        incq %rsi
-        jmp findAvailableIndex_loop
-    findAvailableIndex_loopEnd:
-
-    movq %rsi, %rax # return the index
-        
+    movq %rcx, 24(%rdi)  # move the word to offset 24
 
     # epilogue
     movq  %rbp, %rsp
@@ -96,7 +60,7 @@ createEnemyAtIndex:
     ret
 
 # ****************************************************************************************************
-# * Subroutine: void spawnEnemy(Enemy *enemyArray, char* word)                                       *
+# * Subroutine: void spawnEnemy(Enemy *enemyArray, char* word, quad enemyAmount)                     *
 # * Description: Creates an enemy off screen with a random y coordinate at the first available index *
 # ****************************************************************************************************
 spawnEnemy:
@@ -106,11 +70,8 @@ spawnEnemy:
     
     pushq %rdi # store the enemyArray: -8(%rbp)
     pushq %rsi # store the word:       -16(%rbp)
-
-    # get the first available index 
-    call findAvailableIndex
     
-    pushq %rax  # store the index: -24(%rbp)
+    pushq %rdx  # store the index: -24(%rbp)
     pushq $0    # stack alignment: -32(%rbp)
 
     # get a random value from the range of spawn heights
@@ -264,10 +225,9 @@ moveEnemyAtIndex:
     ret
 
 # *****************************************************************************************
-# * Subroutine: void processEnemies(Enemy *enemyArray, long enemyArraySize)               *    
+# * Subroutine: quad processEnemies(Enemy *enemyArray, long enemyArraySize)               *    
 # * Description: Loops thorugh the enemies and draws them (for now)                       *
 # * Parameters: enemyArray - start of the enemy array                                     *
-# *             index - index of the enemy                                                * 
 # *****************************************************************************************
 processEnemies:
     # prologue
@@ -285,22 +245,13 @@ processEnemies:
 
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
-        call isEnemyAtIndexAlive
 
-        ## if the enemy is dead, continue
-        cmp $0, %rax
-        je processEnemies_loop_isDead
-        processEnemies_loop_isAlive:
-            movq -16(%rbp), %rdi # enemy array as the first parameter
-            movq -8(%rbp), %rsi # enemy index as the second parameter
+        call drawEnemyAtIndex # draw the enemy
 
-            call drawEnemyAtIndex # draw the enemy
-
-            movq -16(%rbp), %rdi # enemy array as the first parameter
-            movq -8(%rbp), %rsi # enemy index as the second parameter
-            call moveEnemyAtIndex
-        processEnemies_loop_isDead:
-       
+        movq -16(%rbp), %rdi # enemy array as the first parameter
+        movq -8(%rbp), %rsi # enemy index as the second parameter
+        call moveEnemyAtIndex
+    
         jmp processEnemies_loop
 
     processEnemies_loopEnd:
@@ -311,43 +262,54 @@ processEnemies:
 
     ret
 
-# *****************************************************************************************
-# * Subroutine: boolean isEnemyAtIndexAlive(Enemy *enemyArray, long index)                *    
-# * Description: Returns the isAlive property of the enemy at index                       *
-# *****************************************************************************************
-isEnemyAtIndexAlive:
-    # prologue
-    pushq %rbp
-    movq  %rsp, %rbp
 
-    # multiply index by enemy size
-    movq enemyStructSize, %rax
-    mul %rsi
-    mov %rax, %rsi
-
-    movq 16(%rdi, %rsi, 8), %rax # return the isAlive property
-
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
-
-# ***********************************************************************************
-# * Subroutine: void killEnemyAtIndex(Enemy *enemyArray, long index)                *    
-# * Description: Sets the isAlive property of the enemy to 0                        *
-# ***********************************************************************************
+# ************************************************************************************************
+# * Subroutine: void killEnemyAtIndex(Enemy *enemyArray, long index, long arraySize)             *    
+# * Description: Removes the enemy from the array and shifts all the other ones one to the left  *
+# ************************************************************************************************
 killEnemyAtIndex:
     # prologue
     pushq %rbp
     movq  %rsp, %rbp
 
-    # multiply index by enemy size
-    movq enemyStructSize, %rax
-    mul %rsi
-    mov %rax, %rsi
+    # LOOP: shift all the elements after index one to the left
+    killEnemyAtIndex_loop:
+        ## if index >= arraySize (as the last index does not need to be overwritten), break
+        cmpq %rdx, %rsi
+        jge killEnemyAtIndex_loopEnd
 
-    movq $0, 16(%rdi, %rsi, 8) # set isAlive to 0
+        pushq %rdx # rdx is overwritten by multiplication
+
+        # multiply index by enemy size
+        movq enemyStructSize, %rax
+        mul %rsi
+        mov %rax, %r8 # store the offset of current enemy in r8
+
+        popq %rdx # restore rdx
+        
+        # store the offset of next enemy in r9
+        movq %r8, %r9
+        addq enemyStructSize, %r9
+        # (%rdi, %r8, 8) -> current enemy
+        # (%rdi, %r9, 8) ->  next enemy
+
+        # move all the attributes of the next elements (at r9) to the current element (rsi)
+        movq 0(%rdi, %r9, 8), %r10
+        movq %r10, 0(%rdi, %r8, 8)
+
+        movq 8(%rdi, %r9, 8), %r10
+        movq %r10, 8(%rdi, %r8, 8)
+
+        movq 16(%rdi, %r9, 8), %r10
+        movq %r10, 16(%rdi, %r8, 8)
+
+        movq 24(%rdi, %r9, 8), %r10
+        movq %r10, 24(%rdi, %r8, 8)
+        
+        incq %rsi # increment index
+        jmp killEnemyAtIndex_loop
+
+    killEnemyAtIndex_loopEnd:
 
     # epilogue
     movq  %rbp, %rsp
@@ -356,7 +318,7 @@ killEnemyAtIndex:
     ret
 
 # ******************************************************************************************************************************
-# * Subroutine: long findEnemyWithWord(Enemy *enemyArray, long arraySize,  char *word)                                         *
+# * Subroutine: long findEnemyWithWord(Enemy *enemyArray, long arraySize, char *word)                                         *
 # * Description: returns the index of the first enemy that contains the word. Returns -1 if no such enemy exists               *
 # ******************************************************************************************************************************
 findEnemyWithWord:
@@ -382,10 +344,8 @@ findEnemyWithWord:
         mul %rdx 
 
         movq -8(%rbp), %rdi # load the array pointer back to rdi
-        ## if the enemy is dead, continue
-            cmpq $0, 16(%rdi, %rax, 8) # 16(%rdi, %rax, 8) -> isAlive property of the enemy at index rsi (ENEMY_SIZE*rsi=rax)
-            je findEnemyWithWord_loop
-        ## else if the enemy's word matches, break
+
+        ##if the enemy's word matches, break
             pushq %rsi # store rsi
             movq 24(%rdi, %rax, 8), %rsi # enemy's word
             movq -24(%rbp), %rdi # our word            
