@@ -1,23 +1,25 @@
 .data
     .include "constants.s"
     .include "List.s"
-    varNum: .quad 6784
+    wordNumber: .quad 0
+
+    maxWordIndex: .quad 200
     
     # variables
     # ------------------------------------------------------------
-    displayTextBuffer: 
+    typedTextBuffer: 
         .zero 0x100 # allocate 100 zeros (null bytes)
-
-    waitTimeValue: .double 1000.0
     
-    displayTextBufferIndex: .quad 0
+    typedTextBufferIndex: .quad 0
 
-    yesNoTextPointer: .quad 0
+    enemySpawnedMessage: .asciz "Enemy spawned at x: %ld, y: %ld with the word '%s'. Index: %ld\n"
 
     # -------------------------------------------------------------
 
 .text
 .global main
+
+.include "enemy.s"
 
 main:
     # prologue
@@ -36,54 +38,30 @@ main:
     subq $800, %rsp # reserve another 100 quads for Enemy array
                     # that is gonna be our Enemy array
                     # -1600(%rbp) -> -808(%rbp)
+
+    # clear the array
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq $800, %rsi # size of the array - 100 bytes
+    call clearMemory
     
-    movq $0, -8(%rbp) # size of our array: -8(%rbp)
+    movq $20, -8(%rbp) # size of our array: -8(%rbp)
              # now we can address the i-th enemy with (enemy_array, i, enemy_size_in_bytes)
 
-    # create an enemy on (400, 300)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $300, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
-    # create an enemy on (400, 100)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $100, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
-    # create an enemy on (400, 200)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $200, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
-    # create an enemy on (400, 400)
-    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
-    movq -8(%rbp), %rsi # the number of enemies (index of the next enemy to create) as second parameter
-    movq enemyStartX, %rdx # third parameter - x coordinate
-    movq $400, %rcx # fourth parameter - y coordinate
-    call createEnemyAtIndex
-    incq -8(%rbp) # increment size of the array
-
-    # TEMP
-    movq  $textNo, yesNoTextPointer
-
-    movq $60, %rdi
+    movq $30, %rdi
     call SetTargetFPS
 
+    movq $0, -16(%rbp) # frame counter: -16(%rbp)
     mainloop:
+        incq -16(%rbp) # increment the frame counter
+
         ## if window should close, end loop (and program)
         call WindowShouldClose
         cmp  $1, %rax
         je   end
 
+
+        leaq -1600(%rbp), %rdi  # memory location of the enemy array
+        movq -8(%rbp), %rsi # size of the array
         call processInput
 
         call BeginDrawing
@@ -92,39 +70,40 @@ main:
             movq  GRAY, %rdi
             call  ClearBackground
 
-            //movq varNum, %r11
-            //movq $words, %rsi
-            //movq  (%rsi, %r11, 8), %rdi 
-            // movq  $10, %rsi
-            // movq  $250, %rdx
-            // movq  $50, %rcx
-            // movq  RED, %r8
-            // call DrawText
-
-            // movq  $displayTextBuffer, %rdi
-            // movq  $10, %rsi
-            // movq  $10, %rdx
-            // movq  $50, %rcx
-            // movq  RED, %r8
-            // call DrawText
-
-            // movq  yesNoTextPointer, %rdi
-            // movq  $500, %rsi
-            // movq  $10, %rdx
-            // movq  $50, %rcx
-            // movq  RED, %r8
-            // call DrawText
+            movq  $typedTextBuffer, %rdi
+            movq  $10, %rsi
+            movq  $10, %rdx
+            movq  $50, %rcx
+            movq  RED, %r8
+            call DrawText
 
             # process enemies
             leaq -1600(%rbp), %rdi  # memory location of the enemy array
             movq -8(%rbp), %rsi # size of the array
             call processEnemies
 
-            # print the FPS
             call GetFPS
-            movq $printFPSMessage, %rdi
-            movq %rax, %rsi
-            call printf
+
+            # spawn a new enemy every 2 seconds
+            cmpq $30, -16(%rbp) # compare 60 to the frame counter
+            jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
+            
+            mainloop_spawnEnemy:
+                # print the FPS
+                movq $printFPSMessage, %rdi
+                movq %rax, %rsi
+                call printf
+
+                movq maxWordIndex, %rdi
+                call getRandomWord
+                movq %rax, %rsi # the random word as the sexond parameter
+
+                # spawn the enemy
+                leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+                call spawnEnemy
+                movq $0, -16(%rbp)  # set frame counter to 0        
+            mainloop_spawnEnemyEnd:
+
 
         call EndDrawing
 
@@ -138,7 +117,7 @@ end:
 
 
 # *************************************************************************************************************************
-# * Subroutine: void processInput()                                                                                       *
+# * Subroutine: void processInput(Enemy *enemyArray, long arraySize)                                                      *
 # * Description: Processes all input related events. Should be called once during every iteration of main loop            *
 # * Parameters: -                                                                                                         *
 # *************************************************************************************************************************
@@ -147,35 +126,35 @@ processInput:
     pushq %rbp
     movq  %rsp, %rbp
 
+    pushq %rdi # enemyArray
+    pushq %rsi # arraySize
+
     # process characters
     call  processCharsPressed
 
-    ## if enter is pressed, clear displayed string
+    ## if enter is pressed, clear typedTextBuffer
     movq $257, %rdi # 257 = enter key
     call IsKeyPressed
     cmpb $0, %al   
     je  enterNotPressed
+    ## if enter is pressed, clear typedTextBuffer and kill the enemy that contains the word
+    movq -8(%rbp), %rdi # enemyArray
+    movq -16(%rbp), %rsi # arraySize
+    movq $typedTextBuffer, %rdx # the word to find
+    call findEnemyWithWord
 
-        # TEMP: check if strings are the same
-        # --------------------------------------------------------------------
-        movq varNum, %r11
-        movq $words, %rsi
-        movq (%rsi, %r11, 8), %rsi
-        call  strcmp
-        cmp   $0, %rax
-        jne   setNo
+    ## if there exists such enemy (the function did not return -1, kill it)
+    cmpq $-1, %rax
+    je processInput_afterKillEnemy
 
-        setYes:
-            movq $textYes, yesNoTextPointer
-            jmp  afterStringComparison
+    movq -8(%rbp), %rdi
+    movq %rax, %rsi
+    call killEnemyAtIndex
 
-        setNo:
-            movq $textNo, yesNoTextPointer
+    processInput_afterKillEnemy:
 
-        afterStringComparison:
-        # --------------------------------------------------------------------
-    
-        call clearDisplayBuffer
+    call clearDisplayBuffer # clear typedTextBuffer
+
     
     enterNotPressed:    # if enter is not pressed, jumps here
 
@@ -188,7 +167,7 @@ processInput:
 
 # *************************************************************************************************************************
 # * Subroutine: void processCharsPressed()                                                                                *
-# * Description: Processes all the chars pressed since last GetCharPressed call. Adds every char to displayTextBuffer     *
+# * Description: Processes all the chars pressed since last GetCharPressed call. Adds every char to typedTextBuffer     *
 # * Parameters: -                                                                                                         *
 # *************************************************************************************************************************
 processCharsPressed:
@@ -221,8 +200,8 @@ processCharsPressed:
 
 # *********************************************************************************
 # * Subroutine: void processCharsPressed(char toAdd)                              *
-# * Description: adds a char to the end of string stored in displayTextBuffer     *
-# * Parameters: toAdd - char that gets added to displayTextBuffer                 *
+# * Description: adds a char to the end of string stored in typedTextBuffer     *
+# * Parameters: toAdd - char that gets added to typedTextBuffer                 *
 # *********************************************************************************
 addCharToDisplayBuffer:
     # prologue
@@ -230,15 +209,15 @@ addCharToDisplayBuffer:
     movq  %rsp, %rbp
 
 
-    # move the byte in %dil (toAdd) into displayTextBuffer at index displayTextBufferIndex
-    movq  displayTextBufferIndex, %rbx   # move index into rbx
-    leaq  displayTextBuffer, %rcx # move the address of displayTextBuffer into rcx
+    # move the byte in %dil (toAdd) into typedTextBuffer at index typedTextBufferIndex
+    movq  typedTextBufferIndex, %rbx   # move index into rbx
+    leaq  typedTextBuffer, %rcx # move the address of typedTextBuffer into rcx
     movb  %dil, (%rbx, %rcx, 1) # move the char into address rbx + rcx*1 (indirect addressing)
-    incq  displayTextBufferIndex # increment index
+    incq  typedTextBufferIndex # increment index
 
     # set the next character to null byte
-    movq  displayTextBufferIndex, %rbx   # move index into rbx
-    leaq  displayTextBuffer, %rcx # move the address of displayTextBuffer into rcx
+    movq  typedTextBufferIndex, %rbx   # move index into rbx
+    leaq  typedTextBuffer, %rcx # move the address of typedTextBuffer into rcx
     movb  $0, (%rbx, %rcx, 1) # move the char into address rbx + rcx*1 (indirect addressing)
 
     # epilogue
@@ -259,35 +238,34 @@ clearDisplayBuffer:
     movq  %rsp, %rbp
 
     # reset index
-    movq $0, displayTextBufferIndex(%rip)
+    movq $0, typedTextBufferIndex(%rip)
 
     # move 0 into byte at displayTextB
-    movq  $0, displayTextBuffer(%rip)
+    movq  $0, typedTextBuffer(%rip)
 
     # epilogue
     movq  %rbp, %rsp
     popq  %rbp
 
     ret
-
-# struct Enemy {
-#     long x;
-#     long y;
-# }
-# size: 16 bytes
 
 # ****************************************************************************
-# * Subroutine: void createEnemy(Enemy *location, long x, long y)            *
-# * Description: Creates an enemy object at the specified memory location    *
-# * Parameters: location - memory address where to place the data            *
+# * Subroutine: void clearMemory(void *start, long amount)                   *
+# * Description: Sets the 'amount' of bytes from the 'start' to zero         *
 # ****************************************************************************
-createEnemy:
+clearMemory:
     # prologue
     pushq %rbp
     movq  %rsp, %rbp
-    
-    movq %rsi, 0(%rdi)  # move x to offset 0
-    movq %rdx, 8(%rdi)  # move y to offset 8
+
+    clearMemory_loop:    
+        decq %rsi
+        movb $0, (%rdi, %rsi, 1)
+
+        ## if rsi is still above zero, loop again
+        cmp $0, %rsi 
+        jg clearMemory_loop
+        
 
     # epilogue
     movq  %rbp, %rsp
@@ -295,149 +273,25 @@ createEnemy:
 
     ret
 
-# *****************************************************************************************
-# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y)    *    
-# * Description: Creates an enemy object at the specified index of the enemyArray         *
-# * Parameters: enemyArray - start of the enemy array                                     *
-# *             index - index of the array where to create the enemy                      * 
-# *****************************************************************************************
-createEnemyAtIndex:
+# **************************************************************************************************
+# * Subroutine: char* getRandomWord(maxWord)                                                       *
+# * Description: Returns a random word from the word list up to the one with index maxWord         *
+# **************************************************************************************************
+getRandomWord:
     # prologue
     pushq %rbp
     movq  %rsp, %rbp
-    
-    pushq %rdx  # push x coordinate: -8(%rbp)
-    pushq %rcx  # push y coordinate: -16(%rbp)
 
-    # multiply index by enemy size in quads
-    movq enemyStructSize, %rax
-    mul %rsi
-    mov %rax, %rsi
+    # get a random index
+    movq %rdi, %rsi
+    movq $0, %rdi
+    call GetRandomValue 
 
-    leaq (%rdi, %rsi, 8), %rdi # load the memory address of where to store enemy to %rdi
-    popq %rdx # load y coordinate
-    popq %rsi # load x coordinate
-
-    call createEnemy # create the enemy
+    movq $words, %rdi
+    movq (%rdi, %rax, 8), %rax # return the word on the index
 
     # epilogue
     movq  %rbp, %rsp
     popq  %rbp
 
     ret
-
-
-# ****************************************************************************
-# * Subroutine: void drawEnemy(Enemy *location)                              *
-# * Description: draws the enemy on (location) onto the screen               *
-# * Parameters: location - memory address of the enemy                       *
-# ****************************************************************************
-drawEnemy:
-    # prologue
-    pushq %rbp
-    movq  %rsp, %rbp
-
-    pushq 0(%rdi)  # push x coordinate: -8(%rbp)
-    pushq 8(%rdi)  # push y coordinate: -16(%rbp)
-    
-    movq -8(%rbp), %rdi
-    movq -16(%rbp), %rsi
-    movq enemyWidth, %rdx
-    movq enemyHeight, %rcx
-    movq RED, %r8
-    call DrawRectangle
-
-
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
-
-# *****************************************************************************************
-# * Subroutine: void drawEnemyAtIndex(Enemy *enemyArray, long index)                      *    
-# * Description: Draws the enemy object at the specified index of the enemyArray          *
-# * Parameters: enemyArray - start of the enemy array                                     *
-# *             index - index of the array                                                * 
-# *****************************************************************************************
-drawEnemyAtIndex:
-    # prologue
-    pushq %rbp
-    movq  %rsp, %rbp
-    
-    # multiply index by enemy size
-    movq enemyStructSize, %rax
-    mul %rsi
-    mov %rax, %rsi
-
-    leaq (%rdi, %rsi, 8), %rdi # load the memory address of where to store enemy to %rdi
-
-    call drawEnemy # create the enemy
-
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
-
-# *****************************************************************************************
-# * Subroutine: void moveEnemyAtIndex(Enemy *enemyArray, long index)                      *    
-# * Description: Moves the enemy - should be called on every enemy every frame once       *
-# * Parameters: enemyArray - start of the enemy array                                     *
-# *             index - index of the enemy                                                * 
-# *****************************************************************************************
-moveEnemyAtIndex:
-    # prologue
-    pushq %rbp
-    movq  %rsp, %rbp
-
-    # multiply index by enemy size
-    movq enemyStructSize, %rax
-    mul %rsi
-    mov %rax, %rsi
-
-    movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdi
-    subq ENEMY_MOVEMENT_SPEED, %rdx # increment the x coordinate by movement speed
-    movq %rdx, (%rdi, %rsi, 8) # store the coordinate back to memory
-
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
-
-# *****************************************************************************************
-# * Subroutine: void processEnemies(Enemy *enemyArray, long enemyArraySize)               *    
-# * Description: Loops thorugh the enemies and draws them (for now)                       *
-# * Parameters: enemyArray - start of the enemy array                                     *
-# *             index - index of the enemy                                                * 
-# *****************************************************************************************
-processEnemies:
-    # prologue
-    pushq %rbp
-    movq  %rsp, %rbp
-
-    pushq %rsi # loop variable: -8(%rbp)
-    pushq %rdi # enemyArray: -16(%rbp)
-
-    processEnemies_loop:
-        decq -8(%rbp) # decrement loop variable (as the first index is one lower than size)
-        movq -16(%rbp), %rdi # enemy array as the first parameter
-        movq -8(%rbp), %rsi # enemy index as the second parameter
-
-        call drawEnemyAtIndex # draw the enemy
-
-        movq -16(%rbp), %rdi # enemy array as the first parameter
-        movq -8(%rbp), %rsi # enemy index as the second parameter
-        call moveEnemyAtIndex
-       
-        ## if it is greater than zero, loop again
-        cmpq $0, -8(%rbp)
-        jg processEnemies_loop
-
-    # epilogue
-    movq  %rbp, %rsp
-    popq  %rbp
-
-    ret
-
