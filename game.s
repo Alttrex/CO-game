@@ -16,6 +16,8 @@
 
     enemySpawnedMessage: .asciz "Enemy spawned at x: %ld, y: %ld with the word '%s'. Index: %ld\n"
 
+    enemyAmount: .quad 0
+
     # -------------------------------------------------------------
 
 .text
@@ -92,7 +94,7 @@ main:
 
             # process enemies
             leaq -1600(%rbp), %rdi  # memory location of the enemy array
-            movq -8(%rbp), %rsi # size of the array
+            movq enemyAmount, %rsi # size of the array
             call processEnemies
 
             call GetFPS
@@ -113,7 +115,9 @@ main:
 
                 # spawn the enemy
                 leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+                movq enemyAmount, %rdx # enemy amount as third parameter
                 call spawnEnemy
+                incq enemyAmount # increment enemy amount
                 movq $0, -16(%rbp)  # set frame counter to 0        
             mainloop_spawnEnemyEnd:
 
@@ -152,7 +156,7 @@ processInput:
     je  enterNotPressed
     ## if enter is pressed, clear typedTextBuffer and kill the enemy that contains the word
     movq -8(%rbp), %rdi # enemyArray
-    movq -16(%rbp), %rsi # arraySize
+    movq enemyAmount, %rsi # enemy amount
     movq $typedTextBuffer, %rdx # the word to find
     call findEnemyWithWord
 
@@ -160,9 +164,13 @@ processInput:
     cmpq $-1, %rax
     je processInput_afterKillEnemy
 
+    # kill the enemy
     movq -8(%rbp), %rdi
     movq %rax, %rsi
+    movq enemyAmount, %rdx
     call killEnemyAtIndex
+    # decrement the enemy amount
+    decq enemyAmount
 
     processInput_afterKillEnemy:
 
