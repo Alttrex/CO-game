@@ -156,10 +156,22 @@ main:
                 movq $printFPSMessage, %rdi
                 movq %rax, %rsi
                 call printf
+                
+                movq   score(%rip), %rax             # Increment score
+                movq   %rax, score(%rip)     # Store back
 
-                movq maxWordIndex, %rdi
-                call getRandomWord
-                movq %rax, %rsi # the random word as the sexond parameter
+                imulq   $95, %rax, %rdi
+
+                cmp $9578, %rdi
+                jl RandomWordGO
+                jmp ItsToBig
+                ItsToBig:
+                    movq $9578, %rdi
+                    jmp RandomWordGO
+
+                RandomWordGO:
+                    call getRandomWord
+                    movq %rax, %rsi # the random word as the second parameter
 
                 # spawn the enemy
                 leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
