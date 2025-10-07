@@ -55,6 +55,47 @@ main:
     call SetTargetFPS
 
     movq $0, -16(%rbp) # frame counter: -16(%rbp)
+
+    startScreenLoop:
+        call BeginDrawing
+        
+            movq WHITE, %rdi
+            call ClearBackground
+
+            movq $welcomeMessage, %rdi
+            movq $130, %rsi
+            movq $200, %rdx
+            movq $50, %rcx
+            movq BLACK, %r8
+            call DrawText
+
+            movq $300, %rdi
+            movq $350, %rsi
+            movq $200, %rdx
+            movq $50, %rcx
+            movq RED, %r8
+            call DrawRectangle
+
+            call EndDrawing
+
+        
+        movq $0, %rdi
+        call IsMouseButtonPressed
+
+        cmpb $1, %al
+        je  mousePressed
+
+
+        call WindowShouldClose
+        cmpq $1, %rax
+        je   end
+
+        jmp startScreenLoop
+
+
+
+
+
     mainloop:
 
         incq -16(%rbp) # increment the frame counter
@@ -366,3 +407,25 @@ getRandomWord:
     popq  %rbp
 
     ret
+
+    mousePressed:
+            call GetMouseX
+            movq %rax, %rdi
+            call GetMouseY
+            movq %rax, %rsi
+
+            # check if mouse is inside the rectangle
+            cmpq $300, %rdi
+            jl notInsideRect
+            cmpq $500, %rdi
+            jg notInsideRect
+
+            cmpq $350, %rsi
+            jl notInsideRect
+            cmpq $400, %rsi
+            jg notInsideRect
+
+            jmp mainloop # if it is inside the rectangle, start the main loop
+
+            notInsideRect:
+                jmp startScreenLoop # if not, continue the start screen loop

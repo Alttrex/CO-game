@@ -56,5 +56,8 @@
 
     ENEMY_FRAMES_PER_SPAWN:    .quad 200
     FPS:                       .quad 120
+    
+    #Messages
     deathMessage: .asciz "You Died! Play Again?\nPress Y to play again"
+    welcomeMessage: .asciz "Welcome to Typper!\nPress to start"
 
