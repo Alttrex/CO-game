@@ -56,5 +56,5 @@
 
     ENEMY_FRAMES_PER_SPAWN:    .quad 200
     FPS:                       .quad 120
-    deathMessage: .asciz "You Died! Play Again?"
+    deathMessage: .asciz "You Died! Play Again?\nPress Y to play again"
 
