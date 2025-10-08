@@ -42,7 +42,7 @@
     enemyWidth: .quad 100
     enemyHeight: .quad 50
 
-    enemyStartX: .quad 900
+    enemyStartX: .quad 810
 
     ENEMY_START_Y_MIN: .quad 100
     ENEMY_START_Y_MAX: .quad 500
@@ -64,4 +64,8 @@
     #Messages
     deathMessage: .asciz "You Died! Play Again?\nPress Y to play again"
     welcomeMessage: .asciz "Welcome to Typper!\nPress to start"
+    
+    HIGH_SCORE_FILE_NAME:          .asciz "high_score"
+    HIGH_SCORE_FILE_OPEN_FLAGS:     .asciz "r"
+    HIGH_SCORE_FILE_CONTENT_FORMAT: .asciz "%lu"
 
