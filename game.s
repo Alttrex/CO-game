@@ -60,7 +60,6 @@ main:
     call readScoreFromFile
     movq %rax, highScore
 
-
     movq FPS, %rdi
     call SetTargetFPS
 
@@ -103,14 +102,12 @@ main:
         jmp startScreenLoop #repeat the start screen loop
 
     mainloop:
-
         incq -16(%rbp) # increment the frame counter
 
         ## if window should close, end loop (and program)
         call WindowShouldClose
         cmpq $1, %rax
         je   end
-        
 
         ## if the game is over -> enemies crossed the finish line, the game is over
         leaq -1600(%rbp), %rdi
@@ -120,6 +117,17 @@ main:
         je   deathScreen
 
         ### MAINLOOP ###
+
+        ## if the score is higher than highScore, highScore = score
+        movq score, %rax
+        cmpq highScore, %rax
+        jle  mainloop_afterScoreSetting
+
+        # highScore = score
+        movq score, %rax
+        movq %rax, highScore
+
+        mainloop_afterScoreSetting:
 
         leaq -1600(%rbp), %rdi  # memory location of the enemy array
         movq -8(%rbp), %rsi # size of the array
@@ -180,8 +188,12 @@ main:
                 movq %rax, %rsi
                 call printf
                 
-                movq   score(%rip), %rax             # Increment score
-                movq   %rax, score(%rip)     # Store back
+
+                # divide score by 100
+                movq $0, %rdx
+                movq score, %rax
+                movq $100, %r8
+                divq %r8
 
                 imulq   $95, %rax, %rdi
 
@@ -210,6 +222,10 @@ main:
         jmp  mainloop    
 
 deathScreen:
+    ## if the highScore is equal to score, we beat it and it needs to be saved
+    movq $HIGH_SCORE_FILE_NAME, %rdi
+    call writeHighScoreToFile
+
     leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
     movq $800, %rsi # size of the array - 100 bytes
     call clearMemory    # clear the enemy array, so nothing is drawn and happeinging in the background
@@ -440,8 +456,8 @@ getRandomWord:
     ret
 
 # **************************************************************************************************
-# * Subroutine: int readScoreFromFile(char* fileName)                                              *         *
-# * Description: Read the score from the high score file and crea         *
+# * Subroutine: int readScoreFromFile(char* fileName)                                              * 
+# * Description: Read the score from the high score file and crea                                  *
 # **************************************************************************************************
 readScoreFromFile:
     # prologue
@@ -452,16 +468,52 @@ readScoreFromFile:
     pushq $0   # stack alignment
 
     # open the file in reading mode
-    movq $HIGH_SCORE_FILE_NAME, %rdi
-    movq $HIGH_SCORE_FILE_OPEN_FLAGS, %rsi
+    movq $HIGH_SCORE_FILE_OPEN_FLAGS_READ, %rsi
     call fopen
+
+    movq %rax, -16(%rbp)
 
     movq %rax, %rdi # file pointer
     movq $HIGH_SCORE_FILE_CONTENT_FORMAT, %rsi # scanf format
     movq $highScoreBuffer, %rdx # high score variable
     call fscanf
+    
+    movq -16(%rbp), %rdi # file pointer
+    call fclose # close the file
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
 
     movq highScoreBuffer, %rax # return high score
+
+    ret    
+
+# **************************************************************************************************
+# * Subroutine: void writeHighScoreToFile(char* fileName)                                          * 
+# * Description: Write the high score to the file                                                  *
+# **************************************************************************************************
+writeHighScoreToFile:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    pushq %rdi # -8(%rbp)
+    pushq $0   # stack alignment
+
+    # open the file in reading mode
+    movq $HIGH_SCORE_FILE_OPEN_FLAGS_WRITE, %rsi
+    call fopen
+
+    movq %rax, -16(%rbp) # file pointer
+
+    movq %rax, %rdi # file pointer
+    movq $HIGH_SCORE_FILE_CONTENT_FORMAT, %rsi # printf format
+    movq highScore, %rdx
+    call fprintf
+
+    movq -16(%rbp), %rdi # file pointer
+    call fclose # close the file
 
     # epilogue
     movq  %rbp, %rsp

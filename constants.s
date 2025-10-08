@@ -66,6 +66,7 @@
     welcomeMessage: .asciz "Welcome to Typper!\nPress to start"
     
     HIGH_SCORE_FILE_NAME:          .asciz "high_score"
-    HIGH_SCORE_FILE_OPEN_FLAGS:     .asciz "r"
+    HIGH_SCORE_FILE_OPEN_FLAGS_READ:     .asciz "r"
+    HIGH_SCORE_FILE_OPEN_FLAGS_WRITE:     .asciz "w"
     HIGH_SCORE_FILE_CONTENT_FORMAT: .asciz "%lu"
 
