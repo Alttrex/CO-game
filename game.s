@@ -65,7 +65,45 @@ main:
     call SetTargetFPS
 
     movq $0, -16(%rbp) # frame counter: -16(%rbp)
+
+    startScreenLoop:
+        call BeginDrawing
+        
+            movq WHITE, %rdi    #make BG white
+            call ClearBackground
+
+            movq $welcomeMessage, %rdi
+            movq $130, %rsi
+            movq $200, %rdx
+            movq $50, %rcx
+            movq BLACK, %r8
+            call DrawText   # draw welcome message
+
+            movq $300, %rdi
+            movq $350, %rsi
+            movq $200, %rdx
+            movq $50, %rcx
+            movq RED, %r8
+            call DrawRectangle  # draw start button rectangle
+                                #TODO: add text
+            call EndDrawing
+
+        
+        movq $0, %rdi
+        call IsMouseButtonPressed # 0 = left mouse button, check if pressed 
+
+        cmpb $1, %al
+        je  mousePressed # if pressed, check if inside rectangle
+
+
+        call WindowShouldClose # check if window should close
+        cmpq $1, %rax
+        je   end
+
+        jmp startScreenLoop #repeat the start screen loop
+
     mainloop:
+
         incq -16(%rbp) # increment the frame counter
 
         ## if window should close, end loop (and program)
@@ -79,7 +117,7 @@ main:
         movq enemyAmount, %rsi
         call isGameOver
         cmpq  $1, %rax
-        je   end
+        je   deathScreen
 
         ### MAINLOOP ###
 
@@ -100,7 +138,7 @@ main:
             movq  $10, %rdx
             movq  $50, %rcx
             movq  RED, %r8
-            call DrawText
+            call DrawText   # draw the typed text buffer, which is what we are typing
 
             # draw score
             movq  $scoreMessage, %rdi
@@ -111,7 +149,7 @@ main:
             movq  $530, %rdx
             movq  $30, %rcx
             movq  RED, %r8
-            call DrawText
+            call DrawText   # draw the score
 
             # draw high score
             movq  $highScoreMessage, %rdi
@@ -136,15 +174,27 @@ main:
             cmpq ENEMY_FRAMES_PER_SPAWN, %r8 # compare ENEMY_FRAMES_PER_SPAWN to the frame counter
             jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
             
-            mainloop_spawnEnemy:
+            mainloop_spawnEnemy:    #debugging? I guess
                 # print the FPS
                 movq $printFPSMessage, %rdi
                 movq %rax, %rsi
                 call printf
+                
+                movq   score(%rip), %rax             # Increment score
+                movq   %rax, score(%rip)     # Store back
 
-                movq maxWordIndex, %rdi
-                call getRandomWord
-                movq %rax, %rsi # the random word as the sexond parameter
+                imulq   $95, %rax, %rdi
+
+                cmp $9578, %rdi
+                jl RandomWordGO
+                jmp ItsToBig
+                ItsToBig:
+                    movq $9578, %rdi
+                    jmp RandomWordGO
+
+                RandomWordGO:
+                    call getRandomWord
+                    movq %rax, %rsi # the random word as the second parameter
 
                 # spawn the enemy
                 leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
@@ -158,6 +208,45 @@ main:
         call EndDrawing
 
         jmp  mainloop    
+
+deathScreen:
+    leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
+    movq $800, %rsi # size of the array - 100 bytes
+    call clearMemory    # clear the enemy array, so nothing is drawn and happeinging in the background
+
+    movq $0, enemyAmount # reset enemy amount to 0
+    movq $0, score # reset score to 0
+    
+    call BeginDrawing
+    
+    movq  BLACK, %rdi
+    call ClearBackground
+
+    movq $50, %rsi
+    call MeasureText
+
+
+    movq  $deathMessage, %rdi
+    movq  $130, %rsi
+    movq  $200, %rdx
+    movq  $50, %rcx
+    movq  WHITE, %r8
+    call DrawText
+
+    call EndDrawing
+
+    movq $89, %rdi
+    call IsKeyPressed
+    cmpb $1, %al
+        
+
+    je   mainloop # if Y is pressed, restart the game
+
+    call WindowShouldClose
+    cmpq $1, %rax
+    je   end
+
+    jmp deathScreen
 
 end:
     # close window and exit with code 0
@@ -379,3 +468,25 @@ readScoreFromFile:
     popq  %rbp
 
     ret    
+
+mousePressed:   #annoying
+        call GetMouseX
+        movq %rax, %rdi
+        call GetMouseY
+        movq %rax, %rsi
+
+        # check if mouse is inside the rectangle
+        cmpq $300, %rdi
+        jl notInsideRect
+        cmpq $500, %rdi
+        jg notInsideRect
+
+        cmpq $350, %rsi
+        jl notInsideRect
+        cmpq $400, %rsi
+        jg notInsideRect
+
+        jmp mainloop # if it is inside the rectangle, start the main loop
+
+        notInsideRect:
+            jmp startScreenLoop # if not, continue the start screen loop
