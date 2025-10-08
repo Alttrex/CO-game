@@ -3,7 +3,9 @@
     .include "List.s"
     wordNumber: .quad 0
     scoreMessage: .asciz "Score: %ld"
+    highScoreMessage: .asciz "High Score: %ld"
     score: .quad 0
+    highScore: .quad 0
 
     maxWordIndex: .quad 200
     
@@ -15,6 +17,8 @@
     typedTextBufferIndex: .quad 0
 
     enemySpawnedMessage: .asciz "Enemy spawned at x: %ld, y: %ld with the word '%s'. Index: %ld\n"
+
+    highScoreBuffer: .quad 0
 
     enemyAmount: .quad 0
 
@@ -51,6 +55,12 @@ main:
     movq $20, -8(%rbp) # size of our array: -8(%rbp)
              # now we can address the i-th enemy with (enemy_array, i, enemy_size_in_bytes)
 
+    # read the high score from file
+    movq $HIGH_SCORE_FILE_NAME, %rdi
+    call readScoreFromFile
+    movq %rax, highScore
+
+
     movq FPS, %rdi
     call SetTargetFPS
 
@@ -77,6 +87,8 @@ main:
         movq -8(%rbp), %rsi # size of the array
         call processInput
 
+        ## if score is higher than high score, chang e
+
         call BeginDrawing
             
             # clear background with gray color
@@ -90,13 +102,24 @@ main:
             movq  RED, %r8
             call DrawText
 
-
+            # draw score
             movq  $scoreMessage, %rdi
             movq  score, %rsi
             call TextFormat
             movq  %rax, %rdi
-            movq  $600, %rsi
-            movq  $10, %rdx
+            movq  $10, %rsi
+            movq  $530, %rdx
+            movq  $30, %rcx
+            movq  RED, %r8
+            call DrawText
+
+            # draw high score
+            movq  $highScoreMessage, %rdi
+            movq  highScore, %rsi
+            call TextFormat
+            movq  %rax, %rdi
+            movq  $10, %rsi
+            movq  $560, %rdx
             movq  $30, %rcx
             movq  RED, %r8
             call DrawText
@@ -326,3 +349,33 @@ getRandomWord:
     popq  %rbp
 
     ret
+
+# **************************************************************************************************
+# * Subroutine: int readScoreFromFile(char* fileName)                                              *         *
+# * Description: Read the score from the high score file and crea         *
+# **************************************************************************************************
+readScoreFromFile:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    pushq %rdi # -8(%rbp)
+    pushq $0   # stack alignment
+
+    # open the file in reading mode
+    movq $HIGH_SCORE_FILE_NAME, %rdi
+    movq $HIGH_SCORE_FILE_OPEN_FLAGS, %rsi
+    call fopen
+
+    movq %rax, %rdi # file pointer
+    movq $HIGH_SCORE_FILE_CONTENT_FORMAT, %rsi # scanf format
+    movq $highScoreBuffer, %rdx # high score variable
+    call fscanf
+
+    movq highScoreBuffer, %rax # return high score
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret    

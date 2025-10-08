@@ -326,7 +326,7 @@ killEnemyAtIndex:
 
     killEnemyAtIndex_loopEnd:
 
-    incq score(%rip) # increment the score
+    addq $100, score(%rip) # increment the score
     
 
     # epilogue
