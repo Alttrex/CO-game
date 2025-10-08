@@ -3,6 +3,10 @@
 #     long y;                       # offset: 8
 #     long framesSinceLastMovement: # offset: 16
 #     char *word;                   # offset: 24
+#     long x;                       # offset: 0
+#     long y;                       # offset: 8
+#     long framesSinceLastMovement: # offset: 16
+#     char *word;                   # offset: 24
 # }
 # size: 24 bytes (4 quads)
 
@@ -16,6 +20,10 @@ createEnemy:
     pushq %rbp
     movq  %rsp, %rbp
     
+    movq %rsi, 0(%rdi)   # move x to offset 0
+    movq %rdx, 8(%rdi)   # move y to offset 8
+    movq $0, 16(%rdi)    # framesSinceLastMovement = 0
+    movq %rcx, 24(%rdi)  # move the word to offset 24
     movq %rsi, 0(%rdi)   # move x to offset 0
     movq %rdx, 8(%rdi)   # move y to offset 8
     movq $0, 16(%rdi)    # framesSinceLastMovement = 0
@@ -62,6 +70,7 @@ createEnemyAtIndex:
 
 # ****************************************************************************************************
 # * Subroutine: void spawnEnemy(Enemy *enemyArray, char* word, quad enemyAmount)                     *
+# * Subroutine: void spawnEnemy(Enemy *enemyArray, char* word, quad enemyAmount)                     *
 # * Description: Creates an enemy off screen with a random y coordinate at the first available index *
 # ****************************************************************************************************
 spawnEnemy:
@@ -71,6 +80,8 @@ spawnEnemy:
     
     pushq %rdi # store the enemyArray: -8(%rbp)
     pushq %rsi # store the word:       -16(%rbp)
+    
+    pushq %rdx  # store the index: -24(%rbp)
     
     pushq %rdx  # store the index: -24(%rbp)
     pushq $0    # stack alignment: -32(%rbp)
@@ -226,7 +237,23 @@ moveEnemyAtIndex:
     # move
     movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdx
     subq ENEMY_MOVEMENT_SPEED, %rdx # decrement the x coordinate by movement speed
+    # increment the framesSinceLastMovement variable
+    incq 16(%rdi, %rsi, 8)
+    movq 16(%rdi, %rsi, 8), %r8 # move framesSinceLastMovement into r8
+
+    ## if framesSinceLastMovement < ENEMY_FRAMES_PER_MOVEMENT, skip movement
+    cmpq ENEMY_FRAMES_PER_MOVEMENT, %r8
+    jl  moveEnemyAtIndex_end
+
+    # move
+    movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdx
+    subq ENEMY_MOVEMENT_SPEED, %rdx # decrement the x coordinate by movement speed
     movq %rdx, (%rdi, %rsi, 8) # store the coordinate back to memory
+    movq $0, 16(%rdi, %rsi, 8) # reset framesSinceLastMovement
+
+    moveEnemyAtIndex_end:
+
+    incq 16(%rdi, %rsi, 8) # increment framesSinceLastMovement
     movq $0, 16(%rdi, %rsi, 8) # reset framesSinceLastMovement
 
     moveEnemyAtIndex_end:
@@ -240,6 +267,7 @@ moveEnemyAtIndex:
     ret
 
 # *****************************************************************************************
+# * Subroutine: quad processEnemies(Enemy *enemyArray, long enemyArraySize)               *    
 # * Subroutine: quad processEnemies(Enemy *enemyArray, long enemyArraySize)               *    
 # * Description: Loops thorugh the enemies and draws them (for now)                       *
 # * Parameters: enemyArray - start of the enemy array                                     *
@@ -260,9 +288,16 @@ processEnemies:
 
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
+        movq -16(%rbp), %rdi # enemy array as the first parameter
+        movq -8(%rbp), %rsi # enemy index as the second parameter
 
         call drawEnemyAtIndex # draw the enemy
+        call drawEnemyAtIndex # draw the enemy
 
+        movq -16(%rbp), %rdi # enemy array as the first parameter
+        movq -8(%rbp), %rsi # enemy index as the second parameter
+        call moveEnemyAtIndex
+    
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
         call moveEnemyAtIndex
@@ -282,6 +317,11 @@ processEnemies:
 # * Subroutine: void killEnemyAtIndex(Enemy *enemyArray, long index, long arraySize)             *    
 # * Description: Removes the enemy from the array and shifts all the other ones one to the left  *
 # ************************************************************************************************
+
+# ************************************************************************************************
+# * Subroutine: void killEnemyAtIndex(Enemy *enemyArray, long index, long arraySize)             *    
+# * Description: Removes the enemy from the array and shifts all the other ones one to the left  *
+# ************************************************************************************************
 killEnemyAtIndex:
     # prologue
     pushq %rbp
@@ -295,7 +335,7 @@ killEnemyAtIndex:
 
         pushq %rdx # rdx is overwritten by multiplication
 
-        # multiply index by enemy size
+             # multiply index by enemy size
         movq enemyStructSize, %rax
         mul %rsi
         mov %rax, %r8 # store the offset of current enemy in r8
@@ -329,6 +369,21 @@ killEnemyAtIndex:
     addq $100, score(%rip) # increment the score
     
 
+    # LOOP: shift all the elements after index one to the left
+    killEnemyAtIndex_loop:
+        ## if index >= arraySize (as the last index does not need to be overwritten), break
+        cmpq %rdx, %rsi
+        jge killEnemyAtIndex_loopEnd
+
+        pushq %rdx # rdx is overwritten by multiplication
+
+    # multiply index by enemy size
+    movq enemyStructSize, %rax
+    mul %rsi
+    mov %rax, %rsi
+
+    movq $0, 16(%rdi, %rsi, 8) # set isAlive to 0
+
     # epilogue
     movq  %rbp, %rsp
     popq  %rbp
@@ -336,6 +391,7 @@ killEnemyAtIndex:
     ret
 
 # ******************************************************************************************************************************
+# * Subroutine: long findEnemyWithWord(Enemy *enemyArray, long arraySize, char *word)                                          *
 # * Subroutine: long findEnemyWithWord(Enemy *enemyArray, long arraySize, char *word)                                          *
 # * Description: returns the index of the first enemy that contains the word. Returns -1 if no such enemy exists               *
 # ******************************************************************************************************************************
@@ -364,6 +420,8 @@ findEnemyWithWord:
         movq -8(%rbp), %rdi # load the array pointer back to rdi
 
         ##if the enemy's word matches, break
+
+        ##if the enemy's word matches, break
             pushq %rsi # store rsi
             movq 24(%rdi, %rax, 8), %rsi # enemy's word
             movq -24(%rbp), %rdi # our word            
@@ -385,6 +443,52 @@ findEnemyWithWord:
         movq $-1, %rax
 
     findEnemyWithWord_epilogue:
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# **************************************************************************************************************
+# * Subroutine: boolean isGameOver(Enemy *enemyArray, long arraySize)                                          *
+# * Description: returns 1, if an enemy has crossed the finish line and the game is over                       *
+# **************************************************************************************************************
+isGameOver:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    movq $0, %r8 # enemy index in r8
+    isGameOver_loop:
+        ## if index >= arraySize than zero, break
+        cmpq %rsi, %r8
+        jge isGameOver_loopEnd
+
+        # multiply index by enemy size
+        movq enemyStructSize, %rax
+        mul %r8
+        mov %rax, %rsi
+
+        ## if the x coordinate of the enemy is lower than finish line, return true
+        movq 0(%rdi, %r8, 8), %r10 # the x coordinate
+        cmpq ENEMY_FINISH_LINE, %r10
+        ## else, loop again
+        jge isGameOver_loop    
+
+        # return true
+        movq $1, %rax
+        jmp isGameOver_end
+
+        incq %r8 # increment loop variable (as the first index is one lower than size)
+
+    isGameOver_loopEnd:
+        # return false -> no enemy is behind finish line
+        movq $0, %rax
+        jmp isGameOver_end 
+
+    isGameOver_end:
+
 
     # epilogue
     movq  %rbp, %rsp

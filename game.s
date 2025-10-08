@@ -82,6 +82,16 @@ main:
         je   end
 
         ### MAINLOOP ###
+        
+
+        ## if the game is over -> enemies crossed the finish line, the game is over
+        leaq -1600(%rbp), %rdi
+        movq enemyAmount, %rsi
+        call isGameOver
+        cmpq  $1, %rax
+        je   end
+
+        ### MAINLOOP ###
 
         leaq -1600(%rbp), %rdi  # memory location of the enemy array
         movq -8(%rbp), %rsi # size of the array
@@ -127,11 +137,14 @@ main:
             # process enemies
             leaq -1600(%rbp), %rdi  # memory location of the enemy array
             movq enemyAmount, %rsi # size of the array
+            movq enemyAmount, %rsi # size of the array
             call processEnemies
 
             call GetFPS
 
             # spawn a new enemy every 2 seconds
+            movq -16(%rbp), %r8
+            cmpq ENEMY_FRAMES_PER_SPAWN, %r8 # compare ENEMY_FRAMES_PER_SPAWN to the frame counter
             movq -16(%rbp), %r8
             cmpq ENEMY_FRAMES_PER_SPAWN, %r8 # compare ENEMY_FRAMES_PER_SPAWN to the frame counter
             jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
@@ -149,7 +162,9 @@ main:
                 # spawn the enemy
                 leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
                 movq enemyAmount, %rdx # enemy amount as third parameter
+                movq enemyAmount, %rdx # enemy amount as third parameter
                 call spawnEnemy
+                incq enemyAmount # increment enemy amount
                 incq enemyAmount # increment enemy amount
                 movq $0, -16(%rbp)  # set frame counter to 0        
             mainloop_spawnEnemyEnd:
@@ -190,6 +205,7 @@ processInput:
     ## if enter is pressed, clear typedTextBuffer and kill the enemy that contains the word
     movq -8(%rbp), %rdi # enemyArray
     movq enemyAmount, %rsi # enemy amount
+    movq enemyAmount, %rsi # enemy amount
     movq $typedTextBuffer, %rdx # the word to find
     call findEnemyWithWord
 
@@ -198,10 +214,14 @@ processInput:
     je processInput_afterKillEnemy
 
     # kill the enemy
+    # kill the enemy
     movq -8(%rbp), %rdi
     movq %rax, %rsi
     movq enemyAmount, %rdx
+    movq enemyAmount, %rdx
     call killEnemyAtIndex
+    # decrement the enemy amount
+    decq enemyAmount
     # decrement the enemy amount
     decq enemyAmount
 
