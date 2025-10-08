@@ -1,4 +1,4 @@
-
+    #debug stuff
     debugIntMessage: .asciz "%ld\n" # TEMP
     holySHIIIIT: .asciz "HOOOOLLY SHIT\n" # TEMP
 
@@ -8,9 +8,13 @@
 
     printFPSMessage: .asciz "FPS: %lu\n"
 
+
+    #window dimensions
     screenWidth: .quad 800
     screenHeight: .quad 600
+    windowTitle: .asciz "Typper"
 
+    #colors
     BLACK:
         .byte 0 # r
         .byte 0 # g
@@ -34,6 +38,7 @@
         .byte 255 # b
         .byte 255 # a
     
+    #enemy constants
     enemyWidth: .quad 100
     enemyHeight: .quad 50
 
@@ -42,20 +47,19 @@
     ENEMY_START_Y_MIN: .quad 100
     ENEMY_START_Y_MAX: .quad 500
 
-
-    windowTitle: .asciz "Typper"
-
-    enemyStructSize: .quad 4 # in quads
-
     enemyFontSize: .quad 22
 
     ENEMY_FINISH_LINE: .quad -100 # after enemy crosses this x, the game is over
 
-    ENEMY_FRAMES_PER_MOVEMENT: .quad 10
-    ENEMY_MOVEMENT_SPEED:      .quad 5
+    ENEMY_FRAMES_PER_MOVEMENT: .quad 10 # every X frames, the enemy moves
+    ENEMY_MOVEMENT_SPEED:      .quad 5  # how many pixels the enemy moves every movement
 
-    ENEMY_FRAMES_PER_SPAWN:    .quad 200
-    FPS:                       .quad 120
+    enemyStructSize: .quad 4 # in quads
+
+    ENEMY_FRAMES_PER_SPAWN:    .quad 200 # every X frames, spawn a new enemy
+    
+    #FPS
+    FPS:                       .quad 120 #frames per second
     
     #Messages
     deathMessage: .asciz "You Died! Play Again?\nPress Y to play again"

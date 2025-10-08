@@ -59,7 +59,7 @@ main:
     startScreenLoop:
         call BeginDrawing
         
-            movq WHITE, %rdi
+            movq WHITE, %rdi    #make BG white
             call ClearBackground
 
             movq $welcomeMessage, %rdi
@@ -67,34 +67,30 @@ main:
             movq $200, %rdx
             movq $50, %rcx
             movq BLACK, %r8
-            call DrawText
+            call DrawText   # draw welcome message
 
             movq $300, %rdi
             movq $350, %rsi
             movq $200, %rdx
             movq $50, %rcx
             movq RED, %r8
-            call DrawRectangle
-
+            call DrawRectangle  # draw start button rectangle
+                                #TODO: add text
             call EndDrawing
 
         
         movq $0, %rdi
-        call IsMouseButtonPressed
+        call IsMouseButtonPressed # 0 = left mouse button, check if pressed 
 
         cmpb $1, %al
-        je  mousePressed
+        je  mousePressed # if pressed, check if inside rectangle
 
 
-        call WindowShouldClose
+        call WindowShouldClose # check if window should close
         cmpq $1, %rax
         je   end
 
-        jmp startScreenLoop
-
-
-
-
+        jmp startScreenLoop #repeat the start screen loop
 
     mainloop:
 
@@ -130,7 +126,7 @@ main:
             movq  $10, %rdx
             movq  $50, %rcx
             movq  RED, %r8
-            call DrawText
+            call DrawText   # draw the typed text buffer, which is what we are typing
 
 
             movq  $scoreMessage, %rdi
@@ -141,7 +137,7 @@ main:
             movq  $10, %rdx
             movq  $30, %rcx
             movq  RED, %r8
-            call DrawText
+            call DrawText   # draw the score
 
             # process enemies
             leaq -1600(%rbp), %rdi  # memory location of the enemy array
@@ -155,15 +151,27 @@ main:
             cmpq ENEMY_FRAMES_PER_SPAWN, %r8 # compare ENEMY_FRAMES_PER_SPAWN to the frame counter
             jl mainloop_spawnEnemyEnd # if it is less, skip the spawning
             
-            mainloop_spawnEnemy:
+            mainloop_spawnEnemy:    #debugging? I guess
                 # print the FPS
                 movq $printFPSMessage, %rdi
                 movq %rax, %rsi
                 call printf
+                
+                movq   score(%rip), %rax             # Increment score
+                movq   %rax, score(%rip)     # Store back
 
-                movq maxWordIndex, %rdi
-                call getRandomWord
-                movq %rax, %rsi # the random word as the sexond parameter
+                imulq   $95, %rax, %rdi
+
+                cmp $9578, %rdi
+                jl RandomWordGO
+                jmp ItsToBig
+                ItsToBig:
+                    movq $9578, %rdi
+                    jmp RandomWordGO
+
+                RandomWordGO:
+                    call getRandomWord
+                    movq %rax, %rsi # the random word as the second parameter
 
                 # spawn the enemy
                 leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
@@ -181,7 +189,7 @@ main:
 deathScreen:
     leaq -1600(%rbp), %rdi # the start of the enemy array as first parameter
     movq $800, %rsi # size of the array - 100 bytes
-    call clearMemory
+    call clearMemory    # clear the enemy array, so nothing is drawn and happeinging in the background
 
     movq $0, enemyAmount # reset enemy amount to 0
     movq $0, score # reset score to 0
@@ -408,7 +416,7 @@ getRandomWord:
 
     ret
 
-    mousePressed:
+    mousePressed:   #annoying
             call GetMouseX
             movq %rax, %rdi
             call GetMouseY
