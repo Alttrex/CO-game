@@ -40,6 +40,8 @@ main:
     movq  $windowTitle, %rdx
     call  InitWindow
 
+
+
     subq $800, %rsp # reserve 100 quads for variables
                     # -800(%rbp) -> -8(%rbp)
     
@@ -78,6 +80,7 @@ main:
             movq $50, %rcx
             movq BLACK, %r8
             call DrawText   # draw welcome message
+
 
             movq $300, %rdi
             movq $350, %rsi

@@ -69,3 +69,6 @@
     HIGH_SCORE_FILE_OPEN_FLAGS:     .asciz "r"
     HIGH_SCORE_FILE_CONTENT_FORMAT: .asciz "%lu"
 
+    #file
+    imagePath: .asciz "start.png"
+
