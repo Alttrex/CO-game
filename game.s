@@ -1,3 +1,5 @@
+.global main
+
 .data
     .include "constants.s"
     .include "List.s"
@@ -24,10 +26,8 @@
 
     # -------------------------------------------------------------
 
-.text
-.global main
-
 .include "enemy.s"
+
 
 main:
     # prologue

@@ -1,16 +1,97 @@
+.data
+
 # struct Enemy {
 #     long x;                       # offset: 0
 #     long y;                       # offset: 8
 #     long framesSinceLastMovement: # offset: 16
 #     char *word;                   # offset: 24
+#     long type;                    # offset: 32
+#     long typeData;                # offset: 40 # data thats specific for the enemy type
 # }
-# size: 24 bytes (4 quads)
+# size: 48 bytes (6 quads)
 
-# ****************************************************************************************
-# * Subroutine: void createEnemy(Enemy *location, long x, long y, char* word)            *
-# * Description: Creates an enemy object at the specified memory location                *
-# * Parameters: location - memory address where to place the data                        *
-# ****************************************************************************************
+enemyStructSize: .quad 6 # in quads
+
+# Enemy types:
+# 0 -> Normal enemy - emptyTtypeData
+# 1 -> Multiple lives - typeData=liveAmount
+# 2 -> Speedy - more speed
+# 3 -> WordChanger - typeData=time since last word
+
+typeSpecificDataTable:
+    .quad 0 # no data for type 2
+    .quad 3 # 3 lives for type 1
+    .quad 0 # no data for type 2
+    .quad 0 # time since last word
+
+enemyTypeColorTable:
+    .quad RED
+    .quad BLUE
+    .quad GREEN
+    .quad PURPLE
+
+
+handleEnemyJumptable:
+    .quad handleBasicEnemy
+    .quad handleMultipleLiverEnemy
+    .quad handleSpeedyEnemy
+    .quad handleWordChangerEnemy
+
+.text
+    
+# ************************************************
+# * Subroutines for handling various enemy types *
+# * void handle...Enemy(Enemy *enemyPointer)     *
+# ************************************************
+handleBasicEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+handleMultipleLiverEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+handleSpeedyEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+handleWordChangerEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# ***************************************************************************************************
+# * Subroutine: void createEnemy(Enemy *location, long x, long y, char* word, long type)            *
+# * Description: Creates an enemy object at the specified memory location                           *
+# * Parameters: location - memory address where to place the data                                   *
+# ***************************************************************************************************
 createEnemy:
     # prologue
     pushq %rbp
@@ -20,6 +101,13 @@ createEnemy:
     movq %rdx, 8(%rdi)   # move y to offset 8
     movq $0, 16(%rdi)    # framesSinceLastMovement = 0
     movq %rcx, 24(%rdi)  # move the word to offset 24
+    movq %r8, 32(%rdi)   # type to offset 32
+
+    # store type specfic data
+    movq $typeSpecificDataTable, %rax
+    movq (%rax, %r8, 8), %rax 
+    movq %rax, 40(%rdi)  # type specific data to offset 40
+    
 
     # epilogue
     movq  %rbp, %rsp
@@ -28,12 +116,12 @@ createEnemy:
     ret
 
 
-# ***************************************************************************************************
-# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y, char* word)  *    
-# * Description: Creates an enemy object at the specified index of the enemyArray                   *
-# * Parameters: enemyArray - start of the enemy array                                               *
-# *             index - index of the array where to create the enemy                                * 
-# ***************************************************************************************************
+# **************************************************************************************************************
+# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y, char* word, long type)  *    
+# * Description: Creates an enemy object at the specified index of the enemyArray                              * 
+# * Parameters: enemyArray - start of the enemy array                                                          *
+# *             index - index of the array where to create the enemy                                           * 
+# **************************************************************************************************************
 createEnemyAtIndex:
     # prologue
     pushq %rbp
@@ -51,6 +139,7 @@ createEnemyAtIndex:
     popq %rdx # load y coordinate
     popq %rsi # load x coordinate
     movq %r8, %rcx # the word
+    movq %r9, %r8 # the type
 
     call createEnemy # create the enemy
 
@@ -96,6 +185,8 @@ spawnEnemy:
     popq %r8  # the word
     popq %rdi # the array pointer
     movq enemyStartX, %rdx # starting x coordinate
+    movq $0, %r9 # the type 
+    # TODO type other than 0
     call createEnemyAtIndex # create the enemy
 
     # epilogue

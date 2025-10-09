@@ -32,6 +32,26 @@
         .byte 0 # g
         .byte 0 # b
         .byte 255 # a
+
+    BLUE:
+        .byte 0 # r
+        .byte 0 # g
+        .byte 100 # b
+        .byte 255 # a
+
+    GREEN:
+        .byte 0 # r
+        .byte 0 # g
+        .byte 100 # b
+        .byte 255 # a
+
+    PURPLE:
+        .byte 100 # r
+        .byte 0   # g
+        .byte 100 # b
+        .byte 255 # a
+
+
     WHITE:
         .byte 255 # r
         .byte 255 # g
@@ -53,8 +73,6 @@
 
     ENEMY_FRAMES_PER_MOVEMENT: .quad 10 # every X frames, the enemy moves
     ENEMY_MOVEMENT_SPEED:      .quad 5  # how many pixels the enemy moves every movement
-
-    enemyStructSize: .quad 4 # in quads
 
     ENEMY_FRAMES_PER_SPAWN:    .quad 200 # every X frames, spawn a new enemy
     
