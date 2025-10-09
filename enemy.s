@@ -18,6 +18,9 @@ enemyStructSize: .quad 6 # in quads
 # 2 -> Speedy - more speed
 # 3 -> WordChanger - typeData=time since last word
 
+SPEEDY_MOVEMENT_BONUS:
+    .quad 1
+
 typeSpecificDataTable:
     .quad 0 # no data for type 2
     .quad 3 # 3 lives for type 1
@@ -25,10 +28,26 @@ typeSpecificDataTable:
     .quad 0 # time since last word
 
 enemyTypeColorTable:
-    .quad RED
-    .quad BLUE
-    .quad GREEN
-    .quad PURPLE
+    # basic enemy: red
+    .byte 100 # r
+    .byte 0 # g
+    .byte 0 # b
+    .byte 255 # a
+    # basic enemy: red
+    .byte 0 # r
+    .byte 0 # g
+    .byte 100 # b
+    .byte 255 # a
+    # speedy enemy: blue
+    .byte 0 # r
+    .byte 100 # g
+    .byte 0 # b
+    .byte 255 # a
+    # word changer enemy: purple
+    .byte 100 # r
+    .byte 0   # g
+    .byte 100 # b
+    .byte 255 # a
 
 
 handleEnemyJumptable:
@@ -179,14 +198,18 @@ spawnEnemy:
     movq -24(%rbp), %r8     # the index
     call printf
 
+    # for now, choose a random enemy type
+    movq $0, %rdi
+    movq $3, %rsi
+    call GetRandomValue
+    movq %rax, %r9 # the type is moved to r9 -> parameter
+
     popq %rcx # restore y coord from the stack
 
     popq %rsi # the index
     popq %r8  # the word
     popq %rdi # the array pointer
     movq enemyStartX, %rdx # starting x coordinate
-    movq $0, %r9 # the type 
-    # TODO type other than 0
     call createEnemyAtIndex # create the enemy
 
     # epilogue
@@ -209,14 +232,17 @@ drawEnemy:
     pushq 0(%rdi)  # push x coordinate: -8(%rbp)
     pushq 8(%rdi)  # push y coordinate: -16(%rbp)
     pushq 24(%rdi) # push the conatining word: -24(%rbp)
-    pushq $0 # stack alignment
+    pushq 32(%rdi) # push the type: -32(%rbp)
     
     # draw the enemy rectangle
     movq -8(%rbp), %rdi # x
     movq -16(%rbp), %rsi # y
     movq enemyWidth, %rdx
     movq enemyHeight, %rcx
-    movq RED, %r8
+    # get the color based on the enemy type
+    movq -32(%rbp), %r9
+    movq $enemyTypeColorTable, %r10
+    movq (%r10, %r9, 4), %r8
     call DrawRectangleLines
 
     # draw the word
@@ -309,6 +335,7 @@ moveEnemyAtIndex:
     # increment the framesSinceLastMovement variable
     incq 16(%rdi, %rsi, 8)
     movq 16(%rdi, %rsi, 8), %r8 # move framesSinceLastMovement into r8
+    movq 32(%rdi, %rsi, 8), %r9 # move type into r9
 
     ## if framesSinceLastMovement < ENEMY_FRAMES_PER_MOVEMENT, skip movement
     cmpq ENEMY_FRAMES_PER_MOVEMENT, %r8
@@ -317,6 +344,11 @@ moveEnemyAtIndex:
     # move
     movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdx
     subq ENEMY_MOVEMENT_SPEED, %rdx # decrement the x coordinate by movement speed
+    ## if the enemy is speedy, subtract SPEEDY_MOVEMENT_BONUS
+        cmpq $2, %r9
+        jne moveEnemyAtIndex_afterSpeedyBonus
+        subq SPEEDY_MOVEMENT_BONUS, %rdx # decrement the x coordinate by movement speed
+    moveEnemyAtIndex_afterSpeedyBonus:
     movq %rdx, (%rdi, %rsi, 8) # store the coordinate back to memory
     movq $0, 16(%rdi, %rsi, 8) # reset framesSinceLastMovement
 
@@ -411,6 +443,12 @@ killEnemyAtIndex:
 
         movq 24(%rdi, %r9, 8), %r10
         movq %r10, 24(%rdi, %r8, 8)
+
+        movq 32(%rdi, %r9, 8), %r10
+        movq %r10, 32(%rdi, %r8, 8)
+
+        movq 40(%rdi, %r9, 8), %r10
+        movq %r10, 40(%rdi, %r8, 8)
         
         incq %rsi # increment index
         jmp killEnemyAtIndex_loop

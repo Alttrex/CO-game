@@ -41,8 +41,8 @@
 
     GREEN:
         .byte 0 # r
-        .byte 0 # g
-        .byte 100 # b
+        .byte 100 # g
+        .byte 0 # b
         .byte 255 # a
 
     PURPLE:
@@ -67,14 +67,14 @@
     ENEMY_START_Y_MIN: .quad 100
     ENEMY_START_Y_MAX: .quad 500
 
-    enemyFontSize: .quad 22
+    enemyFontSize: .quad 30
 
     ENEMY_FINISH_LINE: .quad -100 # after enemy crosses this x, the game is over
 
     ENEMY_FRAMES_PER_MOVEMENT: .quad 10 # every X frames, the enemy moves
-    ENEMY_MOVEMENT_SPEED:      .quad 5  # how many pixels the enemy moves every movement
+    ENEMY_MOVEMENT_SPEED:      .quad 2  # how many pixels the enemy moves every movement
 
-    ENEMY_FRAMES_PER_SPAWN:    .quad 200 # every X frames, spawn a new enemy
+    ENEMY_FRAMES_PER_SPAWN:    .quad 300 # every X frames, spawn a new enemy
     
     #FPS
     FPS:                       .quad 120 #frames per second
