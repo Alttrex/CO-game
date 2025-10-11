@@ -261,6 +261,26 @@ drawEnemy:
     pushq 8(%rdi)  # push y coordinate: -16(%rbp)
     pushq 24(%rdi) # push the conatining word: -24(%rbp)
     pushq 32(%rdi) # push the type: -32(%rbp)
+    pushq enemyWidth # width -40(%rbp)
+    pushq enemyHeight # height -48(%rbp)
+
+    # measure the text
+    movq -24(%rbp), %rdi # the text to measure
+    movq enemyFontSize, %rsi # font size
+    call MeasureText # raylib function -> returns text_width
+
+    pushq %rax # text_width: -56(%rbp)
+    pushq $0 # stack aligment
+
+    ## if the width of the text is higher than enemyWidth + 10, change enemyWidth to text_width + 10
+    addq $10, %rax
+    cmpq enemyWidth, %rax
+    jl drawEnemy_afterWidthChange # if rax is greater, skip width change
+    # change width
+        movq %rax, enemyWidth
+
+    drawEnemy_afterWidthChange:
+
     
     # draw the enemy rectangle
     movq -8(%rbp), %rdi # x
@@ -276,12 +296,9 @@ drawEnemy:
     # draw the word
         # raylib takes in the left upper corner of the text
         # so first, we calculate the left x coord of the text -> enemy_x + enemy_width/2 - text_width/2
-    
 
-    movq -24(%rbp), %rdi # the text to measure
-    movq enemyFontSize, %rsi # font size
-    call MeasureText # reylib function -> returns text_width
 
+    movq -56(%rbp), %rax # text width
     movq $0, %rdx
     movq $2, %r8
     divq %r8 # rax = text_width/2
@@ -310,6 +327,12 @@ drawEnemy:
     movq enemyFontSize, %rcx # font size
     movq RED, %r8 # color
     call DrawText     
+
+    # restore enemyWidth, enemyHeight
+    movq -40(%rbp), %rax
+    movq %rax, enemyWidth
+    movq -48(%rbp), %rax
+    movq %rax, enemyHeight
 
 
     # epilogue
