@@ -12,6 +12,8 @@
 
 enemyStructSize: .quad 6 # in quads
 
+WORD_CHANGER_FRAMES_PER_CHANGE: .quad 360
+
 # Enemy types:
 # 0 -> Normal enemy - emptyTtypeData
 # 1 -> Multiple lives - typeData=liveAmount
@@ -100,6 +102,32 @@ handleWordChangerEnemy:
     pushq %rbp
     movq  %rsp, %rbp
 
+    pushq %rdi # enemy address in -8(%rbp)
+    pushq $0 # stack alignment
+ 
+    incq 40(%rdi) # increment time since last change
+    ## if time since last change >= frames per change, change word
+    movq 40(%rdi), %rax
+    cmpq WORD_CHANGER_FRAMES_PER_CHANGE, %rax
+    jl handleWordChangerEnemy_end # if it is lower, skip change
+        movq $0, 40(%rdi)
+        # change word
+        movq score, %rax
+        imulq  $95, %rax, %rdi # multiply score by 95
+
+        cmp $9578, %rdi
+        jl handleWordChangerEnemy_RandomWordGO
+        jmp handleWordChangerEnemy_ItsToBig
+        handleWordChangerEnemy_ItsToBig:
+            movq $9578, %rdi
+            jmp handleWordChangerEnemy_RandomWordGO
+
+        handleWordChangerEnemy_RandomWordGO:
+            call getRandomWord
+            movq -8(%rbp), %rdi
+            movq %rax, 24(%rdi) # set the random word as a new word
+
+    handleWordChangerEnemy_end:
     # epilogue
     movq  %rbp, %rsp
     popq  %rbp
@@ -389,6 +417,16 @@ processEnemies:
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
         call moveEnemyAtIndex
+
+        movq -8(%rbp), %rax
+        mulq enemyStructSize
+        movq %rax, %rsi
+
+        movq 32(%rdi, %rsi, 8), %rax # enemy type into rax
+        shlq $3, %rax # multiply rax by 8
+        movq handleEnemyJumptable(%rax), %rax # move the address of the corresponding subroutine into rax
+        leaq (%rdi, %rsi, 8), %rdi # the address into rdi
+        call *%rax # call the corresponding subroutine
     
         jmp processEnemies_loop
 
