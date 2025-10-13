@@ -151,7 +151,7 @@ main:
         decq ENEMY_FRAMES_PER_MOVEMENT 
 
         # increase enemy spawn rate
-        subq $50, ENEMY_FRAMES_PER_SPAWN      
+        subq $75, ENEMY_FRAMES_PER_SPAWN      
 
 
         skipSpeedIncrease:
@@ -275,7 +275,13 @@ deathScreen:
     movq $89, %rdi
     call IsKeyPressed
     cmpb $1, %al
-        
+    
+    # restore the default values
+    movq ENEMY_DEFAULT_MOVEMENT_SPEED, %r8
+    movq ENEMY_DEFAULT_FRAMES_PER_MOVEMENT, %r9
+    movq %r8, ENEMY_MOVEMENT_SPEED
+    movq %r9, ENEMY_FRAMES_PER_MOVEMENT
+    movq $0, frameCounter
 
     je   mainloop # if Y is pressed, restart the game
 

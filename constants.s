@@ -74,6 +74,9 @@
     ENEMY_FRAMES_PER_MOVEMENT: .quad 20 # every X frames, the enemy moves
     ENEMY_MOVEMENT_SPEED:      .quad 2 # how many pixels the enemy moves every movement
 
+    ENEMY_DEFAULT_MOVEMENT_SPEED: .quad 2
+    ENEMY_DEFAULT_FRAMES_PER_MOVEMENT: .quad 20
+
     ENEMY_FRAMES_PER_SPAWN:    .quad 720 # every X frames, spawn a new enemy
     
     #FPS
