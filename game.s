@@ -200,11 +200,11 @@ main:
 
                 imulq   $95, %rax, %rdi
 
-                cmp $9578, %rdi
+                cmp $9577, %rdi
                 jl RandomWordGO
                 jmp ItsToBig
                 ItsToBig:
-                    movq $9578, %rdi
+                    movq $9577, %rdi
                     jmp RandomWordGO
 
                 RandomWordGO:
