@@ -1,16 +1,144 @@
+.data
+
 # struct Enemy {
 #     long x;                       # offset: 0
 #     long y;                       # offset: 8
 #     long framesSinceLastMovement: # offset: 16
 #     char *word;                   # offset: 24
+#     long type;                    # offset: 32
+#     long typeData;                # offset: 40 # data thats specific for the enemy type
 # }
-# size: 24 bytes (4 quads)
+# size: 48 bytes (6 quads)
 
-# ****************************************************************************************
-# * Subroutine: void createEnemy(Enemy *location, long x, long y, char* word)            *
-# * Description: Creates an enemy object at the specified memory location                *
-# * Parameters: location - memory address where to place the data                        *
-# ****************************************************************************************
+enemyStructSize: .quad 6 # in quads
+
+WORD_CHANGER_FRAMES_PER_CHANGE: .quad 360
+
+# Enemy types:
+# 0 -> Normal enemy - emptyTtypeData
+# 1 -> Multiple lives - typeData=liveAmount
+# 2 -> Speedy - more speed
+# 3 -> WordChanger - typeData=time since last word
+
+SPEEDY_MOVEMENT_BONUS:
+    .quad 1
+
+typeSpecificDataTable:
+    .quad 0 # no data for type 2
+    .quad 3 # 3 lives for type 1
+    .quad 0 # no data for type 2
+    .quad 0 # time since last word
+
+enemyTypeColorTable:
+    # basic enemy: red
+    .byte 100 # r
+    .byte 0 # g
+    .byte 0 # b
+    .byte 255 # a
+    # basic enemy: red
+    .byte 0 # r
+    .byte 0 # g
+    .byte 100 # b
+    .byte 255 # a
+    # speedy enemy: blue
+    .byte 0 # r
+    .byte 100 # g
+    .byte 0 # b
+    .byte 255 # a
+    # word changer enemy: purple
+    .byte 100 # r
+    .byte 0   # g
+    .byte 100 # b
+    .byte 255 # a
+
+
+handleEnemyJumptable:
+    .quad handleBasicEnemy
+    .quad handleMultipleLiverEnemy
+    .quad handleSpeedyEnemy
+    .quad handleWordChangerEnemy
+
+.text
+    
+# ************************************************
+# * Subroutines for handling various enemy types *
+# * void handle...Enemy(Enemy *enemyPointer)     *
+# ************************************************
+handleBasicEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+handleMultipleLiverEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+handleSpeedyEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+handleWordChangerEnemy:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    pushq %rdi # enemy address in -8(%rbp)
+    pushq $0 # stack alignment
+ 
+    incq 40(%rdi) # increment time since last change
+    ## if time since last change >= frames per change, change word
+    movq 40(%rdi), %rax
+    cmpq WORD_CHANGER_FRAMES_PER_CHANGE, %rax
+    jl handleWordChangerEnemy_end # if it is lower, skip change
+        movq $0, 40(%rdi)
+        # change word
+        movq score, %rax
+        imulq  $95, %rax, %rdi # multiply score by 95
+
+        cmp $9578, %rdi
+        jl handleWordChangerEnemy_RandomWordGO
+        jmp handleWordChangerEnemy_ItsToBig
+        handleWordChangerEnemy_ItsToBig:
+            movq $9578, %rdi
+            jmp handleWordChangerEnemy_RandomWordGO
+
+        handleWordChangerEnemy_RandomWordGO:
+            call getRandomWord
+            movq -8(%rbp), %rdi
+            movq %rax, 24(%rdi) # set the random word as a new word
+
+    handleWordChangerEnemy_end:
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# ***************************************************************************************************
+# * Subroutine: void createEnemy(Enemy *location, long x, long y, char* word, long type)            *
+# * Description: Creates an enemy object at the specified memory location                           *
+# * Parameters: location - memory address where to place the data                                   *
+# ***************************************************************************************************
 createEnemy:
     # prologue
     pushq %rbp
@@ -20,6 +148,13 @@ createEnemy:
     movq %rdx, 8(%rdi)   # move y to offset 8
     movq $0, 16(%rdi)    # framesSinceLastMovement = 0
     movq %rcx, 24(%rdi)  # move the word to offset 24
+    movq %r8, 32(%rdi)   # type to offset 32
+
+    # store type specfic data
+    movq $typeSpecificDataTable, %rax
+    movq (%rax, %r8, 8), %rax 
+    movq %rax, 40(%rdi)  # type specific data to offset 40
+    
 
     # epilogue
     movq  %rbp, %rsp
@@ -28,12 +163,12 @@ createEnemy:
     ret
 
 
-# ***************************************************************************************************
-# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y, char* word)  *    
-# * Description: Creates an enemy object at the specified index of the enemyArray                   *
-# * Parameters: enemyArray - start of the enemy array                                               *
-# *             index - index of the array where to create the enemy                                * 
-# ***************************************************************************************************
+# **************************************************************************************************************
+# * Subroutine: void createEnemyAtIndex(Enemy *enemyArray, long index, long x, long y, char* word, long type)  *    
+# * Description: Creates an enemy object at the specified index of the enemyArray                              * 
+# * Parameters: enemyArray - start of the enemy array                                                          *
+# *             index - index of the array where to create the enemy                                           * 
+# **************************************************************************************************************
 createEnemyAtIndex:
     # prologue
     pushq %rbp
@@ -51,6 +186,7 @@ createEnemyAtIndex:
     popq %rdx # load y coordinate
     popq %rsi # load x coordinate
     movq %r8, %rcx # the word
+    movq %r9, %r8 # the type
 
     call createEnemy # create the enemy
 
@@ -90,6 +226,12 @@ spawnEnemy:
     movq -24(%rbp), %r8     # the index
     call printf
 
+    # for now, choose a random enemy type
+    movq $0, %rdi
+    movq $3, %rsi
+    call GetRandomValue
+    movq %rax, %r9 # the type is moved to r9 -> parameter
+
     popq %rcx # restore y coord from the stack
 
     popq %rsi # the index
@@ -118,14 +260,17 @@ drawEnemy:
     pushq 0(%rdi)  # push x coordinate: -8(%rbp)
     pushq 8(%rdi)  # push y coordinate: -16(%rbp)
     pushq 24(%rdi) # push the conatining word: -24(%rbp)
-    pushq $0 # stack alignment
+    pushq 32(%rdi) # push the type: -32(%rbp)
     
     # draw the enemy rectangle
     movq -8(%rbp), %rdi # x
     movq -16(%rbp), %rsi # y
     movq enemyWidth, %rdx
     movq enemyHeight, %rcx
-    movq RED, %r8
+    # get the color based on the enemy type
+    movq -32(%rbp), %r9
+    movq $enemyTypeColorTable, %r10
+    movq (%r10, %r9, 4), %r8
     call DrawRectangleLines
 
     # draw the word
@@ -218,6 +363,7 @@ moveEnemyAtIndex:
     # increment the framesSinceLastMovement variable
     incq 16(%rdi, %rsi, 8)
     movq 16(%rdi, %rsi, 8), %r8 # move framesSinceLastMovement into r8
+    movq 32(%rdi, %rsi, 8), %r9 # move type into r9
 
     ## if framesSinceLastMovement < ENEMY_FRAMES_PER_MOVEMENT, skip movement
     cmpq ENEMY_FRAMES_PER_MOVEMENT, %r8
@@ -226,6 +372,11 @@ moveEnemyAtIndex:
     # move
     movq (%rdi, %rsi, 8), %rdx # move the x coordinate of the enemy into %rdx
     subq ENEMY_MOVEMENT_SPEED, %rdx # decrement the x coordinate by movement speed
+    ## if the enemy is speedy, subtract SPEEDY_MOVEMENT_BONUS
+        cmpq $2, %r9
+        jne moveEnemyAtIndex_afterSpeedyBonus
+        subq SPEEDY_MOVEMENT_BONUS, %rdx # decrement the x coordinate by movement speed
+    moveEnemyAtIndex_afterSpeedyBonus:
     movq %rdx, (%rdi, %rsi, 8) # store the coordinate back to memory
     movq $0, 16(%rdi, %rsi, 8) # reset framesSinceLastMovement
 
@@ -266,6 +417,16 @@ processEnemies:
         movq -16(%rbp), %rdi # enemy array as the first parameter
         movq -8(%rbp), %rsi # enemy index as the second parameter
         call moveEnemyAtIndex
+
+        movq -8(%rbp), %rax
+        mulq enemyStructSize
+        movq %rax, %rsi
+
+        movq 32(%rdi, %rsi, 8), %rax # enemy type into rax
+        shlq $3, %rax # multiply rax by 8
+        movq handleEnemyJumptable(%rax), %rax # move the address of the corresponding subroutine into rax
+        leaq (%rdi, %rsi, 8), %rdi # the address into rdi
+        call *%rax # call the corresponding subroutine
     
         jmp processEnemies_loop
 
@@ -320,6 +481,12 @@ killEnemyAtIndex:
 
         movq 24(%rdi, %r9, 8), %r10
         movq %r10, 24(%rdi, %r8, 8)
+
+        movq 32(%rdi, %r9, 8), %r10
+        movq %r10, 32(%rdi, %r8, 8)
+
+        movq 40(%rdi, %r9, 8), %r10
+        movq %r10, 40(%rdi, %r8, 8)
         
         incq %rsi # increment index
         jmp killEnemyAtIndex_loop
