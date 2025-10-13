@@ -24,6 +24,8 @@
 
     enemyAmount: .quad 0
 
+    frameCounter: .quad 0
+
     # -------------------------------------------------------------
 
 .include "enemy.s"
@@ -137,6 +139,22 @@ main:
         call processInput
 
         ## if score is higher than high score, chang e
+
+        incq frameCounter # increment frameCounter
+        cmpq $4800, frameCounter
+        jl skipSpeedIncrease
+        movq $0, frameCounter
+        
+        # increase speed
+        incq ENEMY_MOVEMENT_SPEED
+        decq ENEMY_FRAMES_PER_MOVEMENT  
+        decq ENEMY_FRAMES_PER_MOVEMENT 
+
+        # increase enemy spawn rate
+        subq $50, ENEMY_FRAMES_PER_SPAWN      
+
+
+        skipSpeedIncrease:
 
         call BeginDrawing
             

@@ -71,13 +71,13 @@
 
     ENEMY_FINISH_LINE: .quad -100 # after enemy crosses this x, the game is over
 
-    ENEMY_FRAMES_PER_MOVEMENT: .quad 10 # every X frames, the enemy moves
-    ENEMY_MOVEMENT_SPEED:      .quad 2  # how many pixels the enemy moves every movement
+    ENEMY_FRAMES_PER_MOVEMENT: .quad 20 # every X frames, the enemy moves
+    ENEMY_MOVEMENT_SPEED:      .quad 2 # how many pixels the enemy moves every movement
 
-    ENEMY_FRAMES_PER_SPAWN:    .quad 300 # every X frames, spawn a new enemy
+    ENEMY_FRAMES_PER_SPAWN:    .quad 720 # every X frames, spawn a new enemy
     
     #FPS
-    FPS:                       .quad 120 #frames per second
+    FPS:                       .quad 240 #frames per second
     
     #Messages
     deathMessage: .asciz "You Died! Play Again?\nPress Y to play again"
@@ -90,4 +90,3 @@
 
     #file
     imagePath: .asciz "start.png"
-

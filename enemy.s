@@ -12,7 +12,7 @@
 
 enemyStructSize: .quad 6 # in quads
 
-WORD_CHANGER_FRAMES_PER_CHANGE: .quad 360
+WORD_CHANGER_FRAMES_PER_CHANGE: .quad 720
 
 HP_TEXT1: .asciz "*"
 HP_TEXT2: .asciz "**"
