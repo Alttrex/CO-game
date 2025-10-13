@@ -14,6 +14,17 @@ enemyStructSize: .quad 6 # in quads
 
 WORD_CHANGER_FRAMES_PER_CHANGE: .quad 360
 
+HP_TEXT1: .asciz "*"
+HP_TEXT2: .asciz "**"
+HP_TEXT3: .asciz "***"
+
+# HP(HP_TEXT_TABLE) will give us the right text
+HP_TEXT_TABLE:
+    .quad 0
+    .quad HP_TEXT1
+    .quad HP_TEXT2
+    .quad HP_TEXT3
+
 # Enemy types:
 # 0 -> Normal enemy - emptyTtypeData
 # 1 -> Multiple lives - typeData=liveAmount
@@ -34,22 +45,22 @@ enemyTypeColorTable:
     .byte 100 # r
     .byte 0 # g
     .byte 0 # b
-    .byte 255 # a
+    .byte 100 # a
     # basic enemy: red
     .byte 0 # r
     .byte 0 # g
     .byte 100 # b
-    .byte 255 # a
+    .byte 100 # a
     # speedy enemy: blue
     .byte 0 # r
     .byte 100 # g
     .byte 0 # b
-    .byte 255 # a
+    .byte 100 # a
     # word changer enemy: purple
     .byte 100 # r
     .byte 0   # g
     .byte 100 # b
-    .byte 255 # a
+    .byte 100 # a
 
 
 handleEnemyJumptable:
@@ -135,6 +146,41 @@ handleWordChangerEnemy:
     ret
 
 # ***************************************************************************************************
+# * Subroutine: void damageMultipleLiver(Enemy *enemyArray, long index)                             *
+# * Description: Decrements one life from multiple liver and returns 1, if he is dead               *
+# ***************************************************************************************************
+damageMultipleLiverAtIndex:
+    # prologue
+    pushq %rbp
+    movq  %rsp, %rbp
+
+    # multiply index by enemy struct size
+    movq %rsi, %rax
+    mulq enemyStructSize
+    
+    decq 40(%rdi, %rax, 8) # decrement his lives
+
+    ## if lives is 0, return 1
+    movq 40(%rdi, %rax, 8), %rax
+    cmpq $0, %rax
+    jne damageMultipleLiverAtIndex_return0
+
+    damageMultipleLiverAtIndex_return1:
+        movq $1, %rax
+        jmp damageMultipleLiverAtIndex_end
+
+    damageMultipleLiverAtIndex_return0:
+        movq $0, %rax
+        jmp damageMultipleLiverAtIndex_end
+    
+    damageMultipleLiverAtIndex_end:
+    # epilogue
+    movq  %rbp, %rsp
+    popq  %rbp
+
+    ret
+
+# ***************************************************************************************************
 # * Subroutine: void createEnemy(Enemy *location, long x, long y, char* word, long type)            *
 # * Description: Creates an enemy object at the specified memory location                           *
 # * Parameters: location - memory address where to place the data                                   *
@@ -178,6 +224,7 @@ createEnemyAtIndex:
     pushq %rcx  # push y coordinate: -16(%rbp)
 
     # multiply index by enemy size in quads
+
     movq enemyStructSize, %rax
     mul %rsi
     mov %rax, %rsi
@@ -227,10 +274,20 @@ spawnEnemy:
     call printf
 
     # for now, choose a random enemy type
+    # 1 in 5 chance that enemy is non-basic
     movq $0, %rdi
-    movq $3, %rsi
+    movq $4, %rsi
     call GetRandomValue
-    movq %rax, %r9 # the type is moved to r9 -> parameter
+    movq $0, %r9
+    cmpq $0, %rax # if the roll passes, chose a random type
+    jne afterEnemyTypeChoosing
+
+        movq $0, %rdi
+        movq $3, %rsi
+        call GetRandomValue
+        movq %rax, %r9 # the type is moved to r9 -> parameter
+
+    afterEnemyTypeChoosing:
 
     popq %rcx # restore y coord from the stack
 
@@ -261,6 +318,27 @@ drawEnemy:
     pushq 8(%rdi)  # push y coordinate: -16(%rbp)
     pushq 24(%rdi) # push the conatining word: -24(%rbp)
     pushq 32(%rdi) # push the type: -32(%rbp)
+    pushq enemyWidth # width -40(%rbp)
+    pushq enemyHeight # height -48(%rbp)
+    pushq 40(%rdi) # the lives, if multiple liver -56(%rbp)
+    pushq $0 # stack alignment
+
+    # measure the text
+    movq -24(%rbp), %rdi # the text to measure
+    movq enemyFontSize, %rsi # font size
+    call MeasureText # raylib function -> returns text_width
+
+    movq %rax, -64(%rbp) # text_width: -64(%rbp)
+
+    ## if the width of the text is higher than enemyWidth + 10, change enemyWidth to text_width + 10
+    addq $10, %rax
+    cmpq enemyWidth, %rax
+    jl drawEnemy_afterWidthChange # if rax is greater, skip width change
+    # change width
+        movq %rax, enemyWidth
+
+    drawEnemy_afterWidthChange:
+
     
     # draw the enemy rectangle
     movq -8(%rbp), %rdi # x
@@ -271,17 +349,14 @@ drawEnemy:
     movq -32(%rbp), %r9
     movq $enemyTypeColorTable, %r10
     movq (%r10, %r9, 4), %r8
-    call DrawRectangleLines
+    call DrawRectangle
 
     # draw the word
         # raylib takes in the left upper corner of the text
         # so first, we calculate the left x coord of the text -> enemy_x + enemy_width/2 - text_width/2
-    
 
-    movq -24(%rbp), %rdi # the text to measure
-    movq enemyFontSize, %rsi # font size
-    call MeasureText # reylib function -> returns text_width
 
+    movq -64(%rbp), %rax # text width
     movq $0, %rdx
     movq $2, %r8
     divq %r8 # rax = text_width/2
@@ -309,7 +384,31 @@ drawEnemy:
     movq -24(%rbp), %rdi # the word to draw
     movq enemyFontSize, %rcx # font size
     movq RED, %r8 # color
-    call DrawText     
+    call DrawText   
+
+    # draw the lives text, if the enemy is multiple liver
+    movq -32(%rbp), %rax
+    cmpq $1, %rax # is multiple liver?
+    jne afterLivesTextDraw
+        movq -56(%rbp), %rax # life amount
+        shlq $3, %rax # multiply rax by 8
+        movq HP_TEXT_TABLE(%rax), %rdi # the text to draw
+
+        movq -8(%rbp), %rsi # enemy x
+        movq -16(%rbp), %rdx # enemy y
+        subq $25, %rdx # enemy y + 10
+        movq enemyFontSize, %rcx # font size
+        movq RED, %r8 # color
+        call DrawText     
+
+    afterLivesTextDraw:
+  
+
+    # restore enemyWidth, enemyHeight
+    movq -40(%rbp), %rax
+    movq %rax, enemyWidth
+    movq -48(%rbp), %rax
+    movq %rax, enemyHeight
 
 
     # epilogue
@@ -448,6 +547,43 @@ killEnemyAtIndex:
     pushq %rbp
     movq  %rsp, %rbp
 
+    pushq %rdx # multiplication overwrites rdx aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+    movq %rsi, %rax
+    mulq enemyStructSize
+
+    popq %rdx
+
+    
+
+
+    ## if the enemy has multiple lives, we kill him only if he has 1 life, otherwise 
+    movq 32(%rdi, %rax, 8), %rcx # enemy type into rcx
+    cmpq $1, %rcx # is multiple liver?
+    jne killEnemyAtIndex_loop # if not, kill him
+
+ 
+
+    # save
+    pushq %rdi
+    pushq %rsi
+    pushq %rcx
+    pushq %rdx
+
+    ## otherwise, damage him
+    call damageMultipleLiverAtIndex # returns 1 if he is dead
+    # restore
+    popq %rdx
+    popq %rcx
+    popq %rsi
+    popq %rdi
+
+    cmpq $1, %rax
+    je killEnemyAtIndex_loop # if he is dead, shift enemies
+    # otherwise, return 0
+    movq $0, %rax
+    jmp killEnemyAtIndex_end
+
     # LOOP: shift all the elements after index one to the left
     killEnemyAtIndex_loop:
         ## if index >= arraySize (as the last index does not need to be overwritten), break
@@ -493,8 +629,11 @@ killEnemyAtIndex:
 
     killEnemyAtIndex_loopEnd:
 
-    addq $100, score(%rip) # increment the score
+    addq $100, score # increment the score
     
+    movq $1, %rax
+
+    killEnemyAtIndex_end:
 
     # epilogue
     movq  %rbp, %rsp

@@ -309,9 +309,9 @@ processInput:
     movq -8(%rbp), %rdi
     movq %rax, %rsi
     movq enemyAmount, %rdx
-    call killEnemyAtIndex
-    # decrement the enemy amount
-    decq enemyAmount
+    call killEnemyAtIndex # if the enemy was actually killed, returns 1 and 0 otehrwise
+    # we can subtract the amount returned from enemyAmount
+    subq %rax, enemyAmount
 
     processInput_afterKillEnemy:
 
