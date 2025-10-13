@@ -443,8 +443,8 @@ getRandomWord:
     ret
 
 # **************************************************************************************************
-# * Subroutine: int readScoreFromFile(char* fileName)                                              *         *
-# * Description: Read the score from the high score file and crea         *
+# * Subroutine: int readScoreFromFile(char* fileName)                                              * 
+# * Description: Read the score from the high score file and crea                                  *
 # **************************************************************************************************
 readScoreFromFile:
     # prologue
