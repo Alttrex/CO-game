@@ -78,6 +78,7 @@
     ENEMY_DEFAULT_FRAMES_PER_MOVEMENT: .quad 20
 
     ENEMY_FRAMES_PER_SPAWN:    .quad 720 # every X frames, spawn a new enemy
+    ENEMY_DEFAULT_FRAMES_PER_SPAWN: .quad 720
     
     #FPS
     FPS:                       .quad 240 #frames per second

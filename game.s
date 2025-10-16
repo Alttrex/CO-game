@@ -279,9 +279,12 @@ deathScreen:
     # restore the default values
     movq ENEMY_DEFAULT_MOVEMENT_SPEED, %r8
     movq ENEMY_DEFAULT_FRAMES_PER_MOVEMENT, %r9
+    movq ENEMY_DEFAULT_FRAMES_PER_SPAWN, %r10
     movq %r8, ENEMY_MOVEMENT_SPEED
     movq %r9, ENEMY_FRAMES_PER_MOVEMENT
+    movq %r10, ENEMY_FRAMES_PER_SPAWN
     movq $0, frameCounter
+
 
     je   mainloop # if Y is pressed, restart the game
 
